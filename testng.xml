@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE suite SYSTEM "https://testng.org/testng-1.0.dtd">
+<suite name="OrangeHRM Test Suite" verbose="1">
+
+    <test name="OrangeHRM Automation Tests" preserve-order="true">
+        <classes>
+            <!-- Login Tests -->
+<!--            <class name="tests.LoginTests">-->
+<!--                <methods>-->
+<!--                    <include name="testValidLogin"/>-->
+<!--                    <include name="testInvalidLogin"/>-->
+<!--                    <include name="testForgotPasswordLink"/>-->
+<!--                </methods>-->
+<!--            </class>-->
+
+            <!-- Dashboard Tests -->
+<!--            <class name="tests.DashboardTests">-->
+<!--                <methods>-->
+<!--                    <include name="testDashboardElementsDisplayed"/>-->
+<!--                    <include name="testNavigateToAdminPage"/>-->
+<!--                    <include name="testLogout"/>-->
+<!--                </methods>-->
+<!--            </class>-->
+
+<!--            &lt;!&ndash; Admin Tests &ndash;&gt;-->
+<!--            <class name="tests.AdminTests">-->
+<!--                <methods>-->
+<!--                    <include name="testAdminPageDisplay"/>-->
+<!--                    <include name="testAddButtonFunctionality"/>-->
+<!--                    <include name="testUserSearch"/>-->
+<!--                </methods>-->
+<!--            </class>-->
+
+<!--            &lt;!&ndash; Leave Tests &ndash;&gt;-->
+            <class name="tests.LeaveTests">
+                <methods>
+                    <include name="testLeavePageDisplay"/>
+                    <include name="testSearchLeaveByDateRange"/>
+                    <include name="testResetButton"/>
+                </methods>
+            </class>
+
+<!--            &lt;!&ndash; Time Tests &ndash;&gt;-->
+<!--            <class name="tests.TimeTests">-->
+<!--                <methods>-->
+<!--                    <include name="testTimePageDisplay"/>-->
+<!--                    <include name="testSearchTimeByDateRange"/>-->
+<!--                    <include name="testSearchAndResetWorkflow"/>-->
+<!--                </methods>-->
+<!--            </class>-->
+
+<!--            &lt;!&ndash; Recruitment Tests &ndash;&gt;-->
+<!--            <class name="tests.RecruitmentTests">-->
+<!--                <methods>-->
+<!--                    <include name="testRecruitmentPageDisplay"/>-->
+<!--                    <include name="testAddButtonFunctionality"/>-->
+<!--                    <include name="testSearchCandidateByDateRange"/>-->
+<!--                </methods>-->
+<!--            </class>-->
+        </classes>
+    </test>
+
+</suite>
