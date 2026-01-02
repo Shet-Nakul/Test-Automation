@@ -7,10 +7,7 @@ import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
 import java.time.Duration;
 
-public class PerformancePage {
-
-    private WebDriver driver;
-    private WebDriverWait wait;
+public class PerformancePage extends BasePage {
 
     // Locators
     private By performanceHeader = By.xpath("//h6[text()='Performance']");
@@ -29,8 +26,7 @@ public class PerformancePage {
 
     // Constructor
     public PerformancePage(WebDriver driver) {
-        this.driver = driver;
-        this.wait = new WebDriverWait(driver, Duration.ofSeconds(10));
+        super(driver);
     }
 
     // COMMON METHOD: Used across multiple test classes

@@ -8,10 +8,7 @@ import org.openqa.selenium.support.ui.WebDriverWait;
 import java.time.Duration;
 import java.util.List;
 
-public class LeavePage {
-
-    private WebDriver driver;
-    private WebDriverWait wait;
+public class LeavePage extends BasePage {
 
     // Locators
     private By leaveHeader = By.xpath("//h6[text()='Leave']");
@@ -27,8 +24,7 @@ public class LeavePage {
 
     // Constructor
     public LeavePage(WebDriver driver) {
-        this.driver = driver;
-        this.wait = new WebDriverWait(driver, Duration.ofSeconds(10));
+        super(driver);
     }
 
     // COMMON METHOD: Used across multiple test classes

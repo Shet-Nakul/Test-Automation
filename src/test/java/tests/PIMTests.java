@@ -20,7 +20,7 @@ public class PIMTests extends BaseTest {
 
         DashboardPage dashboardPage = new DashboardPage(driver);
         // Navigate to PIM
-        driver.get(BASE_URL + "web/index.php/pim/viewEmployeeList");
+        dashboardPage.navigateToPIM();
 
         pimPage = new PIMPage(driver);
     }

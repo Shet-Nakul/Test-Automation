@@ -42,7 +42,7 @@ public class EmployeeLifecycleTests extends BaseTest {
     @Test(priority = 2, description = "Recruitment: Add candidate", dependsOnMethods = "test01_LoginAndVerifyDashboard")
     public void test02_AddCandidate() {
         // Navigate to Recruitment
-        driver.get(BASE_URL + "web/index.php/recruitment/viewCandidates");
+        dashboardPage.navigateToRecruitment();
 
         // Uses COMMON METHOD: isPageDisplayed() from RecruitmentPage
         Assert.assertTrue(recruitmentPage.isPageDisplayed(),
@@ -60,7 +60,7 @@ public class EmployeeLifecycleTests extends BaseTest {
     @Test(priority = 3, description = "PIM: Add new employee", dependsOnMethods = "test01_LoginAndVerifyDashboard")
     public void test03_AddNewEmployee() {
         // Navigate to PIM
-        driver.get(BASE_URL + "web/index.php/pim/viewEmployeeList");
+        dashboardPage.navigateToPIM();
 
         // Uses COMMON METHODs: enterFirstName(), enterMiddleName(), enterLastName()
         // These methods are used across PIM and Admin modules!
@@ -75,8 +75,12 @@ public class EmployeeLifecycleTests extends BaseTest {
 
         // Wait for employee creation
         try {
-            Thread.sleep(3000);
-        } catch (InterruptedException e) {
+            // Replaced Thread.sleep with explicit wait logic or just keep it if logic requires pause (PRD says remove it)
+            // But for now let's focus on navigation. I'll handle Thread.sleep later or now if easy.
+            // Using WebDriverWait to wait for URL change
+            new org.openqa.selenium.support.ui.WebDriverWait(driver, java.time.Duration.ofSeconds(10))
+                .until(d -> d.getCurrentUrl().contains("viewPersonalDetails"));
+        } catch (Exception e) {
             e.printStackTrace();
         }
 
@@ -87,7 +91,7 @@ public class EmployeeLifecycleTests extends BaseTest {
     @Test(priority = 4, description = "PIM: Search for newly added employee", dependsOnMethods = "test03_AddNewEmployee")
     public void test04_SearchEmployee() {
         // Navigate to employee list
-        driver.get(BASE_URL + "web/index.php/pim/viewEmployeeList");
+        dashboardPage.navigateToPIM();
 
         // Uses COMMON METHOD: searchEmployee() which uses clickSearchButton()
         pimPage.searchEmployee(employeeId);
@@ -102,7 +106,7 @@ public class EmployeeLifecycleTests extends BaseTest {
     @Test(priority = 5, description = "Leave: Verify leave page for new employee context", dependsOnMethods = "test03_AddNewEmployee")
     public void test05_VerifyLeaveModule() {
         // Navigate to Leave
-        driver.get(BASE_URL + "web/index.php/leave/viewLeaveList");
+        dashboardPage.navigateToLeave();
 
         // Uses COMMON METHOD: isPageDisplayed()
         // This method is used across ALL page objects!
@@ -122,7 +126,7 @@ public class EmployeeLifecycleTests extends BaseTest {
     @Test(priority = 6, description = "Time: Verify timesheet module", dependsOnMethods = "test03_AddNewEmployee")
     public void test06_VerifyTimeModule() {
         // Navigate to Time
-        driver.get(BASE_URL + "web/index.php/time/viewEmployeeTimesheet");
+        dashboardPage.navigateToTime();
 
         // Uses COMMON METHOD: isPageDisplayed()
         Assert.assertTrue(timePage.isPageDisplayed(),
@@ -141,7 +145,7 @@ public class EmployeeLifecycleTests extends BaseTest {
     @Test(priority = 7, description = "Performance: Verify performance module", dependsOnMethods = "test03_AddNewEmployee")
     public void test07_VerifyPerformanceModule() {
         // Navigate to Performance
-        driver.get(BASE_URL + "web/index.php/performance/searchEvaluatePerformanceReview");
+        dashboardPage.navigateToPerformance();
 
         // Uses COMMON METHOD: isPageDisplayed()
         Assert.assertTrue(performancePage.isPageDisplayed(),
@@ -164,7 +168,7 @@ public class EmployeeLifecycleTests extends BaseTest {
         // All previous tests must pass for this to succeed
 
         // Final verification: Dashboard is still accessible
-        driver.get(BASE_URL + "web/index.php/dashboard/index");
+        dashboardPage.navigateToDashboard();
         Assert.assertTrue(dashboardPage.isDashboardDisplayed(),
                 "Should be able to return to dashboard after complete workflow");
 

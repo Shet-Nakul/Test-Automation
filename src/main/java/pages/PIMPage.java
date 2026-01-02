@@ -7,10 +7,7 @@ import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
 import java.time.Duration;
 
-public class PIMPage {
-
-    private WebDriver driver;
-    private WebDriverWait wait;
+public class PIMPage extends BasePage {
 
     // Locators
     private By pimHeader = By.xpath("//h6[text()='PIM']");
@@ -33,8 +30,7 @@ public class PIMPage {
 
     // Constructor
     public PIMPage(WebDriver driver) {
-        this.driver = driver;
-        this.wait = new WebDriverWait(driver, Duration.ofSeconds(10));
+        super(driver);
     }
 
     // COMMON METHOD: Used across multiple test classes

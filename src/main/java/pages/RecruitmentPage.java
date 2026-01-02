@@ -7,10 +7,7 @@ import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
 import java.time.Duration;
 
-public class RecruitmentPage {
-
-    private WebDriver driver;
-    private WebDriverWait wait;
+public class RecruitmentPage extends BasePage {
 
     // Locators
     private By recruitmentHeader = By.xpath("//h6[text()='Recruitment']");
@@ -28,8 +25,7 @@ public class RecruitmentPage {
 
     // Constructor
     public RecruitmentPage(WebDriver driver) {
-        this.driver = driver;
-        this.wait = new WebDriverWait(driver, Duration.ofSeconds(10));
+        super(driver);
     }
 
     // COMMON METHOD: Used across multiple test classes
