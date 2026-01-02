@@ -13,7 +13,7 @@
 <!--                </methods>-->
 <!--            </class>-->
 
-            <!-- Dashboard Tests -->
+<!--            &lt;!&ndash; Dashboard Tests &ndash;&gt;-->
 <!--            <class name="tests.DashboardTests">-->
 <!--                <methods>-->
 <!--                    <include name="testDashboardElementsDisplayed"/>-->
@@ -32,13 +32,13 @@
 <!--            </class>-->
 
 <!--            &lt;!&ndash; Leave Tests &ndash;&gt;-->
-            <class name="tests.LeaveTests">
-                <methods>
-                    <include name="testLeavePageDisplay"/>
-                    <include name="testSearchLeaveByDateRange"/>
-                    <include name="testResetButton"/>
-                </methods>
-            </class>
+<!--            <class name="tests.LeaveTests">-->
+<!--                <methods>-->
+<!--                    <include name="testLeavePageDisplay"/>-->
+<!--                    <include name="testSearchLeaveByDateRange"/>-->
+<!--                    <include name="testResetButton"/>-->
+<!--                </methods>-->
+<!--            </class>-->
 
 <!--            &lt;!&ndash; Time Tests &ndash;&gt;-->
 <!--            <class name="tests.TimeTests">-->
@@ -57,6 +57,48 @@
 <!--                    <include name="testSearchCandidateByDateRange"/>-->
 <!--                </methods>-->
 <!--            </class>-->
+
+<!--            &lt;!&ndash; PIM Tests &ndash;&gt;-->
+<!--            <class name="tests.PIMTests">-->
+<!--                <methods>-->
+<!--                    <include name="testPIMPageDisplay"/>-->
+<!--                    <include name="testAddEmployeeBasic"/>-->
+<!--                    <include name="testAddEmployeeWithLogin"/>-->
+<!--                    <include name="testSearchEmployee"/>-->
+<!--                    <include name="testResetSearchFilters"/>-->
+<!--                    <include name="testEmployeeListDisplay"/>-->
+<!--                </methods>-->
+<!--            </class>-->
+
+            <!-- Performance Tests -->
+            <class name="tests.PerformanceTests">
+                <methods>
+                    <include name="testPerformancePageDisplay"/>
+                    <include name="testConfigureMenuNavigation"/>
+                    <include name="testMyReviewsMenuDisplay"/>
+                    <include name="testKPIPageAddButton"/>
+                    <include name="testSearchKPIs"/>
+                    <include name="testResetButtonOnKPIs"/>
+                </methods>
+            </class>
+        </classes>
+    </test>
+
+    <!-- Integration Tests Suite -->
+    <test name="Employee Lifecycle Integration Tests" preserve-order="true">
+        <classes>
+            <class name="tests.EmployeeLifecycleTests">
+                <methods>
+                    <include name="test01_LoginAndVerifyDashboard"/>
+                    <include name="test02_AddCandidate"/>
+                    <include name="test03_AddNewEmployee"/>
+                    <include name="test04_SearchEmployee"/>
+                    <include name="test05_VerifyLeaveModule"/>
+                    <include name="test06_VerifyTimeModule"/>
+                    <include name="test07_VerifyPerformanceModule"/>
+                    <include name="test08_VerifyCompleteWorkflow"/>
+                </methods>
+            </class>
         </classes>
     </test>
 
