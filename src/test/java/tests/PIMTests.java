@@ -10,7 +10,7 @@ import pages.PIMPage;
 public class PIMTests extends BaseTest {
 
     private PIMPage pimPage;
-    private String testEmployeeId = "EMP" + System.currentTimeMillis(); // Unique ID
+    private String testEmployeeId = "EMP1234567" ;
 
     @BeforeMethod
     public void loginAndNavigateToPIM() {
