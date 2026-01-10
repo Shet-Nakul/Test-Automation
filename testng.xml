@@ -2,101 +2,111 @@
 <!DOCTYPE suite SYSTEM "https://testng.org/testng-1.0.dtd">
 <suite name="OrangeHRM Test Suite" verbose="1">
 
-    <test name="OrangeHRM Automation Tests" preserve-order="true">
+<!--    <test name="OrangeHRM Automation Tests" preserve-order="true">-->
+<!--        <classes>-->
+<!--            &lt;!&ndash; Login Tests &ndash;&gt;-->
+<!--            <class name="tests.LoginTests">-->
+<!--                <methods>-->
+<!--                    <include name="testValidLogin"/>-->
+<!--                    <include name="testInvalidLogin"/>-->
+<!--                    <include name="testForgotPasswordLink"/>-->
+<!--                </methods>-->
+<!--            </class>-->
+
+<!--            &lt;!&ndash; Dashboard Tests &ndash;&gt;-->
+<!--            <class name="tests.DashboardTests">-->
+<!--                <methods>-->
+<!--                    <include name="testDashboardElementsDisplayed"/>-->
+<!--                    <include name="testNavigateToAdminPage"/>-->
+<!--                    <include name="testLogout"/>-->
+<!--                </methods>-->
+<!--            </class>-->
+
+<!--            &lt;!&ndash; Admin Tests &ndash;&gt;-->
+<!--            <class name="tests.AdminTests">-->
+<!--                <methods>-->
+<!--                    <include name="testAdminPageDisplay"/>-->
+<!--                    <include name="testAddButtonFunctionality"/>-->
+<!--                    <include name="testUserSearch"/>-->
+<!--                </methods>-->
+<!--            </class>-->
+
+<!--            &lt;!&ndash; Leave Tests &ndash;&gt;-->
+<!--            <class name="tests.LeaveTests">-->
+<!--                <methods>-->
+<!--                    <include name="testLeavePageDisplay"/>-->
+<!--                    <include name="testSearchLeaveByDateRange"/>-->
+<!--                    <include name="testResetButton"/>-->
+<!--                </methods>-->
+<!--            </class>-->
+
+<!--            &lt;!&ndash; Time Tests &ndash;&gt;-->
+<!--            <class name="tests.TimeTests">-->
+<!--                <methods>-->
+<!--                    <include name="testTimePageDisplay"/>-->
+<!--                    <include name="testSearchTimeByDateRange"/>-->
+<!--                    <include name="testSearchAndResetWorkflow"/>-->
+<!--                </methods>-->
+<!--            </class>-->
+
+<!--            &lt;!&ndash; Recruitment Tests &ndash;&gt;-->
+<!--            <class name="tests.RecruitmentTests">-->
+<!--                <methods>-->
+<!--                    <include name="testRecruitmentPageDisplay"/>-->
+<!--                    <include name="testAddButtonFunctionality"/>-->
+<!--                    <include name="testSearchCandidateByDateRange"/>-->
+<!--                </methods>-->
+<!--            </class>-->
+
+<!--            &lt;!&ndash; PIM Tests &ndash;&gt;-->
+<!--            <class name="tests.PIMTests">-->
+<!--                <methods>-->
+<!--                    <include name="testPIMPageDisplay"/>-->
+<!--                    <include name="testAddEmployeeBasic"/>-->
+<!--                    <include name="testAddEmployeeWithLogin"/>-->
+<!--                    <include name="testSearchEmployee"/>-->
+<!--                    <include name="testResetSearchFilters"/>-->
+<!--                    <include name="testEmployeeListDisplay"/>-->
+<!--                </methods>-->
+<!--            </class>-->
+
+<!--            &lt;!&ndash; Performance Tests &ndash;&gt;-->
+<!--            <class name="tests.PerformanceTests">-->
+<!--                <methods>-->
+<!--                    <include name="testPerformancePageDisplay"/>-->
+<!--                    <include name="testConfigureMenuNavigation"/>-->
+<!--                    <include name="testMyReviewsMenuDisplay"/>-->
+<!--                    <include name="testKPIPageAddButton"/>-->
+<!--                    <include name="testSearchKPIs"/>-->
+<!--                    <include name="testResetButtonOnKPIs"/>-->
+<!--                </methods>-->
+<!--            </class>-->
+<!--        </classes>-->
+<!--    </test>-->
+
+<!--    &lt;!&ndash; Integration Tests Suite &ndash;&gt;-->
+<!--    <test name="Employee Lifecycle Integration Tests" preserve-order="true">-->
+<!--        <classes>-->
+<!--            <class name="tests.EmployeeLifecycleTests">-->
+<!--                <methods>-->
+<!--                    <include name="test01_LoginAndVerifyDashboard"/>-->
+<!--                    <include name="test02_AddCandidate"/>-->
+<!--                    <include name="test03_AddNewEmployee"/>-->
+<!--                    <include name="test04_SearchEmployee"/>-->
+<!--                    <include name="test05_VerifyLeaveModule"/>-->
+<!--                    <include name="test06_VerifyTimeModule"/>-->
+<!--                    <include name="test07_VerifyPerformanceModule"/>-->
+<!--                    <include name="test08_VerifyCompleteWorkflow"/>-->
+<!--                </methods>-->
+<!--            </class>-->
+<!--        </classes>-->
+<!--    </test>-->
+    <!-- Scenario 1 from PDF -->
+    <test name="Scenario 1 - Employee CRUD (Single Session)" preserve-order="true">
         <classes>
-            <!-- Login Tests -->
-            <class name="tests.LoginTests">
+            <class name="tests.EmployeeTest">
                 <methods>
-                    <include name="testValidLogin"/>
-                    <include name="testInvalidLogin"/>
-                    <include name="testForgotPasswordLink"/>
-                </methods>
-            </class>
-
-            <!-- Dashboard Tests -->
-            <class name="tests.DashboardTests">
-                <methods>
-                    <include name="testDashboardElementsDisplayed"/>
-                    <include name="testNavigateToAdminPage"/>
-                    <include name="testLogout"/>
-                </methods>
-            </class>
-
-            <!-- Admin Tests -->
-            <class name="tests.AdminTests">
-                <methods>
-                    <include name="testAdminPageDisplay"/>
-                    <include name="testAddButtonFunctionality"/>
-                    <include name="testUserSearch"/>
-                </methods>
-            </class>
-
-            <!-- Leave Tests -->
-            <class name="tests.LeaveTests">
-                <methods>
-                    <include name="testLeavePageDisplay"/>
-                    <include name="testSearchLeaveByDateRange"/>
-                    <include name="testResetButton"/>
-                </methods>
-            </class>
-
-            <!-- Time Tests -->
-            <class name="tests.TimeTests">
-                <methods>
-                    <include name="testTimePageDisplay"/>
-                    <include name="testSearchTimeByDateRange"/>
-                    <include name="testSearchAndResetWorkflow"/>
-                </methods>
-            </class>
-
-            <!-- Recruitment Tests -->
-            <class name="tests.RecruitmentTests">
-                <methods>
-                    <include name="testRecruitmentPageDisplay"/>
-                    <include name="testAddButtonFunctionality"/>
-                    <include name="testSearchCandidateByDateRange"/>
-                </methods>
-            </class>
-
-            <!-- PIM Tests -->
-            <class name="tests.PIMTests">
-                <methods>
-                    <include name="testPIMPageDisplay"/>
-                    <include name="testAddEmployeeBasic"/>
-                    <include name="testAddEmployeeWithLogin"/>
-                    <include name="testSearchEmployee"/>
-                    <include name="testResetSearchFilters"/>
-                    <include name="testEmployeeListDisplay"/>
-                </methods>
-            </class>
-
-            <!-- Performance Tests -->
-            <class name="tests.PerformanceTests">
-                <methods>
-                    <include name="testPerformancePageDisplay"/>
-                    <include name="testConfigureMenuNavigation"/>
-                    <include name="testMyReviewsMenuDisplay"/>
-                    <include name="testKPIPageAddButton"/>
-                    <include name="testSearchKPIs"/>
-                    <include name="testResetButtonOnKPIs"/>
-                </methods>
-            </class>
-        </classes>
-    </test>
-
-    <!-- Integration Tests Suite -->
-    <test name="Employee Lifecycle Integration Tests" preserve-order="true">
-        <classes>
-            <class name="tests.EmployeeLifecycleTests">
-                <methods>
-                    <include name="test01_LoginAndVerifyDashboard"/>
-                    <include name="test02_AddCandidate"/>
-                    <include name="test03_AddNewEmployee"/>
-                    <include name="test04_SearchEmployee"/>
-                    <include name="test05_VerifyLeaveModule"/>
-                    <include name="test06_VerifyTimeModule"/>
-                    <include name="test07_VerifyPerformanceModule"/>
-                    <include name="test08_VerifyCompleteWorkflow"/>
+                    <include name="employeeLifecycleScenario1"/>
                 </methods>
             </class>
         </classes>
