@@ -30,6 +30,9 @@ class MethodInfo:
     calls: Set[str] = field(default_factory=set)      # method names called inside body
     locators: List[str] = field(default_factory=list) # xpath/css inline strings used
     locator_fields_used: Set[str] = field(default_factory=set)  # class-level field names referenced (e.g. 'employeeListHeader')
+    # Typed calls: {varName: methodName} extracted from "varName.methodName()" in body
+    # e.g. {"adminPage": {"clickAdd", "searchUser"}}
+    typed_calls: Dict[str, Set[str]] = field(default_factory=dict)
 
 
 @dataclass
@@ -41,6 +44,7 @@ class ParsedFile:
     methods: List[MethodInfo]
     raw_source: str
     class_level_locators: Dict[str, str] = field(default_factory=dict)  # fieldName → xpathValue
+    class_field_types: Dict[str, str] = field(default_factory=dict)     # varName → TypeName (for typed call resolution)
 
 
 # ──────────────────────────────────────────────
@@ -104,6 +108,17 @@ METHOD_CALL_RE   = re.compile(r'(?:[\w]+\.)?(\w+)\s*\(')
 LOCATOR_FIELD_RE = re.compile(
     r'(?:By|String)\s+(\w+)\s*=\s*By\.(?:xpath|cssSelector|id|name|className|tagName|linkText|partialLinkText)\s*\(\s*"([^"]+)"'
 )
+
+# Field declaration pattern: captures (TypeName, varName) from class-level field declarations
+# e.g. "AdminPage adminPage = new AdminPage(driver);" → ("AdminPage", "adminPage")
+FIELD_DECL_RE = re.compile(
+    r'(?:private|public|protected)?\s*(?:static\s+)?(?:final\s+)?'
+    r'([A-Z]\w+)\s+(\w+)\s*(?:=|;)'
+)
+
+# Typed call pattern: captures (objectName, methodName) from "obj.method()" calls
+# e.g. "adminPage.clickAdd()" → ("adminPage", "clickAdd")
+TYPED_CALL_RE = re.compile(r'\b(\w+)\.(\w+)\s*\(')
 
 # Noise words to filter from method call extraction (Java keywords + common types)
 _CALL_NOISE = frozenset({
@@ -260,7 +275,22 @@ class JavaFileParser:
         for m in STRING_CONST_LOCATOR_RE.finditer(source):
             class_level_locators[m.group(1)] = m.group(2)
 
-        methods = self._extract_methods(source, class_name, file_path, class_level_locators)
+        # Extract class-level field type declarations: varName → TypeName
+        # e.g. "AdminPage adminPage = new AdminPage(driver);" → adminPage:AdminPage
+        _java_builtins = frozenset({
+            'String','int','boolean','void','long','double','float','char','byte',
+            'Integer','Long','Double','Boolean','List','Map','Set','Object',
+            'WebDriver','WebElement','By','WebDriverWait','Duration','Actions',
+            'JavascriptExecutor','ExpectedConditions','WebDriverException',
+        })
+        class_field_types: Dict[str, str] = {}
+        for m in FIELD_DECL_RE.finditer(source):
+            type_name = m.group(1)
+            var_name  = m.group(2)
+            if type_name not in _java_builtins and not type_name[0].islower():
+                class_field_types[var_name] = type_name
+
+        methods = self._extract_methods(source, class_name, file_path, class_level_locators, class_field_types)
 
         return ParsedFile(
             file_path=file_path,
@@ -269,7 +299,8 @@ class JavaFileParser:
             imports=imports,
             methods=methods,
             raw_source=source,
-            class_level_locators=class_level_locators
+            class_level_locators=class_level_locators,
+            class_field_types=class_field_types
         )
 
     def _extract_methods(
@@ -277,8 +308,11 @@ class JavaFileParser:
         source: str,
         class_name: str,
         file_path: str,
-        class_level_locators: Dict[str, str]
+        class_level_locators: Dict[str, str],
+        class_field_types: Dict[str, str] = None
     ) -> List[MethodInfo]:
+        if class_field_types is None:
+            class_field_types = {}
 
         methods = []
         # Find all method matches
@@ -322,6 +356,16 @@ class JavaFileParser:
                     if locator_value not in locators:
                         locators.append(locator_value)    # also keep resolved value
 
+            # Extract typed calls: "varName.methodName()" patterns
+            # These allow us to resolve "adminPage.clickAdd()" → AdminPage#clickAdd
+            typed_calls: Dict[str, Set[str]] = {}
+            cleaned_body = re.sub(r'"[^"]*"', '""', body)
+            for tc in TYPED_CALL_RE.finditer(cleaned_body):
+                var_name    = tc.group(1)
+                method_name_called = tc.group(2)
+                if var_name in class_field_types and var_name != 'this':
+                    typed_calls.setdefault(var_name, set()).add(method_name_called)
+
             methods.append(MethodInfo(
                 class_name=class_name,
                 method_name=method_name,
@@ -333,7 +377,8 @@ class JavaFileParser:
                 body=body,
                 calls=calls,
                 locators=locators,
-                locator_fields_used=locator_fields_used
+                locator_fields_used=locator_fields_used,
+                typed_calls=typed_calls
             ))
 
         return methods

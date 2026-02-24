@@ -59,12 +59,14 @@ class CallGraphBuilder:
     def build(self, parsed_files: List[ParsedFile]) -> CallGraph:
         graph = CallGraph()
 
-        # ── Phase 0: build class-level field → xpath map from source ──────
-        # We re-derive this from the parser's LOCATOR_FIELD_RE / @FindBy results
-        # stored in pf.class_level_locators (added below to ParsedFile)
+        # ── Phase 0: build class-level field maps ───────────────────────────
         for pf in parsed_files:
             if hasattr(pf, 'class_level_locators'):
                 graph.class_field_map[pf.class_name] = pf.class_level_locators
+            if hasattr(pf, 'class_field_types'):
+                # Store varName → ClassName for this class
+                # e.g. AdminTests: {"adminPage": "AdminPage", "pimPage": "PIMPage"}
+                graph.class_field_map[f"__types__{pf.class_name}"] = pf.class_field_types
 
         # ── Phase 1: register all methods ──────────────────────
         for pf in parsed_files:
@@ -84,17 +86,48 @@ class CallGraphBuilder:
                     scoped_key = f"{method.class_name}#{field_name}"
                     graph.scoped_field_to_methods[scoped_key].add(method.full_qualified)
 
-        # ── Phase 2: build forward edges & reverse edges ────────
+        # ── Phase 2: build forward edges & reverse edges ────────────────────
         for pf in parsed_files:
+            # Get the field type map for THIS class: varName → TypeName
+            field_types = graph.class_field_map.get(f"__types__{pf.class_name}", {})
+
             for method in pf.methods:
                 caller_fq = method.full_qualified
+                resolved_callees: Set[str] = set()
+
+                # ── Typed call resolution (precise): "varName.methodName()" ──
+                # Resolves to the specific class of the variable, not all classes.
+                # e.g. "adminPage.clickAdd()" → AdminPage#clickAdd only (not PIMPage#clickAdd)
+                for var_name, method_names in method.typed_calls.items():
+                    target_class = field_types.get(var_name)
+                    if target_class:
+                        for mn in method_names:
+                            candidate_fq = f"{target_class}#{mn}"
+                            if candidate_fq in graph.method_map_fq:
+                                resolved_callees.add(candidate_fq)
+
+                # ── Untyped call resolution (fallback): plain "methodName()" ──
+                # For calls without an object prefix, or where the type isn't known.
+                # Prefer same-class methods to reduce cross-class noise.
                 for called_name in method.calls:
-                    # Resolve called_name to full-qualified methods
-                    callees = graph.method_map_short.get(called_name, [])
-                    for callee in callees:
-                        callee_fq = callee.full_qualified
-                        graph.forward[caller_fq].add(callee_fq)
-                        graph.reverse[callee_fq].add(caller_fq)
+                    # Skip if already resolved via typed path
+                    already_resolved = any(fq.endswith(f"#{called_name}") for fq in resolved_callees)
+                    if already_resolved:
+                        continue
+
+                    # First try: same class (self-calls like helper methods)
+                    same_class_fq = f"{pf.class_name}#{called_name}"
+                    if same_class_fq in graph.method_map_fq:
+                        resolved_callees.add(same_class_fq)
+                    else:
+                        # Fallback: any class that has this method name
+                        for callee in graph.method_map_short.get(called_name, []):
+                            resolved_callees.add(callee.full_qualified)
+
+                # Build edges
+                for callee_fq in resolved_callees:
+                    graph.forward[caller_fq].add(callee_fq)
+                    graph.reverse[callee_fq].add(caller_fq)
 
         return graph
 
@@ -172,20 +205,26 @@ class ImpactAnalyzer:
                     if method.class_name == class_name and xpath_value in method.locators:
                         starting_fq[fq] = label
 
-        # ── Resolve raw xpath/css strings (CLI --locators flag fallback) ────
-        # Only used when no scoped info is available (e.g. direct CLI input).
-        # Respects already-found entries from scoped lookup above.
-        for loc in changed_locators:
-            if loc in self.graph.locator_to_methods:
-                for fq in self.graph.locator_to_methods[loc]:
-                    if fq not in starting_fq:
-                        starting_fq[fq] = f"LOCATOR:{loc}"
-            else:
-                for stored_loc, methods in self.graph.locator_to_methods.items():
-                    if loc in stored_loc or stored_loc in loc:
-                        for fq in methods:
-                            if fq not in starting_fq:
-                                starting_fq[fq] = f"LOCATOR:{loc}" 
+        # ── Resolve raw xpath/css strings (CLI --locators flag only) ─────────
+        # IMPORTANT: If scoped locator changes were provided, the raw locator list
+        # will contain both old AND new xpath values from the diff (from - and + lines).
+        # These raw values must NOT be used when scoped info already covers that class —
+        # otherwise they match identically-named xpaths in OTHER classes (false positives).
+        #
+        # Rule: skip raw lookup entirely if scoped changes were provided.
+        # Raw lookup is only the fallback for CLI --locators flag usage.
+        if not changed_scoped_locators:
+            for loc in changed_locators:
+                if loc in self.graph.locator_to_methods:
+                    for fq in self.graph.locator_to_methods[loc]:
+                        if fq not in starting_fq:
+                            starting_fq[fq] = f"LOCATOR:{loc}"
+                else:
+                    for stored_loc, methods in self.graph.locator_to_methods.items():
+                        if loc in stored_loc or stored_loc in loc:
+                            for fq in methods:
+                                if fq not in starting_fq:
+                                    starting_fq[fq] = f"LOCATOR:{loc}" 
 
         # BFS upward from each starting node
         impacted_tests: List[ImpactedTest] = []
