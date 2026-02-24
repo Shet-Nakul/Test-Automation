@@ -201,48 +201,49 @@ class GitDiffAnalyzer:
 
             fc = FileChange(file_path=file_path)
 
-            # ── Extract changed method names from the diff ──────────────────
-            # Strategy 1: method name from @@ hunk header context line
-            #   e.g. "@@ -45,6 +45,7 @@ public void clickSearchButton() {"
-            #   Git puts the nearest enclosing method/class here.
-            hunk_methods_from_header: List[str] = []
-            for m in HUNK_RE.finditer(section):
-                ctx = m.group(1).strip()
-                if ctx:
-                    fc.hunk_contexts.append(ctx)
-                    sig_match = METHOD_SIG_RE.search(ctx)
-                    if sig_match:
-                        name = sig_match.group(1)
-                        if name not in ('if','while','for','catch','class'):
-                            hunk_methods_from_header.append(name)
+            # ── Extract changed method names: line-by-line tracking ─────────
+            # Walk every line of the hunk in order.
+            # Maintain `current_method` — updated whenever a method signature
+            # appears in a context line (space-prefixed) or the @@ header.
+            # When a +/- line is encountered, current_method is the enclosing method.
+            #
+            # This correctly handles adjacent methods in the same hunk:
+            # the method signature AFTER a change belongs to the NEXT method,
+            # not to the one that was just changed.
+            _noise = frozenset({'if','while','for','switch','catch','try','else',
+                                 'new','class','super','this','return'})
+            current_method = None
+
+            for raw_line in section.split('\n'):
+                if raw_line.startswith('@@'):
+                    # Seed current_method from @@ header context if it's a method sig
+                    hunk_ctx_m = re.search(r'@@[^@]+@@\s*(.*)', raw_line)
+                    if hunk_ctx_m:
+                        ctx = hunk_ctx_m.group(1).strip()
+                        fc.hunk_contexts.append(ctx)
+                        sig = METHOD_SIG_RE.search(ctx)
+                        if sig and sig.group(1) not in _noise:
+                            current_method = sig.group(1)
+
+                elif raw_line.startswith(' '):
+                    # Context line: update current_method if it's a method signature
+                    sig = METHOD_SIG_RE.search(raw_line[1:])
+                    if sig and sig.group(1) not in _noise:
+                        current_method = sig.group(1)
+
+                elif raw_line.startswith('+') or raw_line.startswith('-'):
+                    # Changed line: attribute to current_method
+                    if current_method and current_method not in fc.changed_methods:
+                        fc.changed_methods.append(current_method)
+                    # Also check if the changed line itself IS a method signature
+                    # (handles method renames / new method additions)
+                    sig = METHOD_SIG_RE.search(raw_line[1:])
+                    if sig and sig.group(1) not in _noise:
+                        name = sig.group(1)
+                        if name not in fc.changed_methods:
                             fc.changed_methods.append(name)
 
-            # Strategy 2: scan context lines in the hunk (lines without +/-)
-            # When git uses the CLASS declaration in the @@ header, we must find
-            # the enclosing method by looking at context lines above the change.
-            # Context lines start with a space character in unified diff format.
-            CONTEXT_LINE_RE = re.compile(r'^ (.+)$', re.MULTILINE)
-            context_methods_found: List[str] = []
-            for m in CONTEXT_LINE_RE.finditer(section):
-                line = m.group(1)
-                sig_match = METHOD_SIG_RE.search(line)
-                if sig_match:
-                    name = sig_match.group(1)
-                    if name not in ('if','while','for','catch','class'):
-                        context_methods_found.append(name)
-
-            # Strategy 3: scan added/removed lines for method signatures
-            # Catches method renames and new method additions
-            sig_from_changed_lines: List[str] = []
-
-            # Merge context-line method names into changed_methods
-            # Use the LAST method signature seen in context lines before a change —
-            # that is the enclosing method for body-only changes.
-            if context_methods_found:
-                # The last method sig seen in context is closest to the change
-                closest = context_methods_found[-1]
-                if closest not in fc.changed_methods:
-                    fc.changed_methods.append(closest)
+            sig_from_changed_lines: List[str] = []  # kept for compat, no longer used
 
             # Derive class name from file path
             # e.g. "src/test/java/pages/AdminPage.java" → "AdminPage"
