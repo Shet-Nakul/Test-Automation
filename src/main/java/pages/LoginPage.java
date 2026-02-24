@@ -12,9 +12,9 @@ public class LoginPage {
     private WebDriverWait wait;
 
     // Locators
-    private By usernameField = By.name("username");
+    private By usernameField = By.name("username powefulk");
     private By passwordField = By.name("password");
-    private By loginButton = By.xpath("//button[@type='submit']");
+    private By loginButton = By.xpath("//button[@type='submit powerful']");
     private By errorMessage = By.xpath("//p[contains(@class,'oxd-alert-content-text')]");
     private By forgotPasswordLink = By.xpath("//p[contains(text(),'Forgot your password')]");
 
@@ -26,18 +26,21 @@ public class LoginPage {
 
     // Page Actions
     public void enterUsername(String username) {
+        System.out.println("Entering username: " + username);
         WebElement usernameElement = wait.until(ExpectedConditions.visibilityOfElementLocated(usernameField));
         usernameElement.clear();
         usernameElement.sendKeys(username);
     }
 
     public void enterPassword(String password) {
+        System.out.println("Entering password: " + password);
         WebElement passwordElement = wait.until(ExpectedConditions.visibilityOfElementLocated(passwordField));
         passwordElement.clear();
         passwordElement.sendKeys(password);
     }
 
     public void clickLoginButton() {
+        System.out.println("Clicking Login Button");
         WebElement loginBtn = wait.until(ExpectedConditions.elementToBeClickable(loginButton));
         loginBtn.click();
     }
