@@ -67,6 +67,7 @@ public class LeavePage extends BasePage {
     public void enterToDate(String date) {
         WebElement toDate = wait.until(ExpectedConditions.visibilityOfElementLocated(toDateField));
         toDate.clear();
+        toDate.clear();
         toDate.sendKeys(date);
     }
 
