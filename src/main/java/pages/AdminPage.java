@@ -48,6 +48,7 @@ public class AdminPage extends BasePage {
     }
 
     public void clickSearchButton() {
+        System.out.println("Clicking search button");
         WebElement searchBtn = wait.until(ExpectedConditions.elementToBeClickable(searchButton));
         searchBtn.click();
     }
