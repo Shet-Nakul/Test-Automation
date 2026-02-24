@@ -333,11 +333,58 @@ class CiSummaryReporter:
       │                       — method names for method changes
       ├─ 🧪 Impact table     — grouped BY CHANGE: each change shows which tests it broke
       ├─ 📞 Call chains      — collapsible detail
+      ├─ 🧬 TestNG XML       — collapsible, ready-to-copy testng.xml for impacted tests
       └─ Footer summary line
 
     Layout (when no tests impacted):
       └─ ✅ Short green banner only
     """
+
+    def _build_testng_xml(self, impacted_tests) -> str:
+        """Build a testng.xml snippet containing only the impacted test methods."""
+        from collections import OrderedDict
+        import os as _os
+
+        # Group by class, preserving insertion order
+        classes = OrderedDict()
+        seen = set()
+        for it in impacted_tests:
+            fq = it.test_method.full_qualified
+            if fq in seen:
+                continue
+            seen.add(fq)
+            cls  = it.test_method.class_name
+            meth = it.test_method.method_name
+            # Derive package from file path  e.g. .../tests/AdminTests.java → tests
+            file_path = it.test_method.file_path or ""
+            parts = file_path.replace("\\", "/").split("/")
+            # find "java" folder and take the segment after it as package root
+            try:
+                java_idx = next(i for i, p in enumerate(parts) if p == "java")
+                pkg_parts = parts[java_idx + 1:-1]   # between java/ and ClassName.java
+                package   = ".".join(pkg_parts) if pkg_parts else "tests"
+            except StopIteration:
+                package = "tests"
+            full_class = f"{package}.{cls}"
+            classes.setdefault(full_class, []).append(meth)
+
+        lines = []
+        lines.append('<?xml version="1.0" encoding="UTF-8"?>')
+        lines.append('<!DOCTYPE suite SYSTEM "https://testng.org/testng-1.0.dtd">')
+        lines.append('<suite name="Impacted Tests Suite" verbose="1">')
+        lines.append('    <test name="Impacted Tests" preserve-order="true">')
+        lines.append('        <classes>')
+        for full_class, methods in classes.items():
+            lines.append(f'            <class name="{full_class}">')
+            lines.append( '                <methods>')
+            for m in methods:
+                lines.append(f'                    <include name="{m}"/>')
+            lines.append( '                </methods>')
+            lines.append( '            </class>')
+        lines.append('        </classes>')
+        lines.append('    </test>')
+        lines.append('</suite>')
+        return "\n".join(lines)
 
     def generate(self, report) -> str:
         lines = []
@@ -360,7 +407,6 @@ class CiSummaryReporter:
         lines.append("### 📝 What Changed")
         lines.append("")
 
-        # Locator changes: field name | old xpath → new xpath
         if report.scoped_locator_changes:
             lines.append("**Locator Changes:**")
             lines.append("")
@@ -381,7 +427,6 @@ class CiSummaryReporter:
                 lines.append(f"| `{class_name}` | `{field_name}` | {old_str} | {new_str} |")
             lines.append("")
 
-        # Method changes
         if report.changed_methods:
             lines.append("**Modified Methods:**")
             lines.append("")
@@ -390,12 +435,11 @@ class CiSummaryReporter:
             lines.append("")
 
         # ── Section 2: Impact table — grouped BY CHANGE ───────────────────
-        # For each change (locator or method), list the tests it broke.
         lines.append("### 🧪 Impacted Tests — Grouped by Change")
         lines.append("")
 
-        # Group impacted tests by their change_root
         from collections import OrderedDict
+        import os as _os
         groups = OrderedDict()
         for it in report.impacted_tests:
             root = it.change_root
@@ -405,9 +449,7 @@ class CiSummaryReporter:
             if not any(x.test_method.full_qualified == key for x in groups[root]):
                 groups[root].append(it)
 
-        import os as _os
         for change_root, tests in groups.items():
-            # Format the change label
             if change_root.startswith("LOCATOR:"):
                 raw = change_root[len("LOCATOR:"):]
                 if "(" in raw:
@@ -423,10 +465,10 @@ class CiSummaryReporter:
             lines.append("| Test Class | Test Method | File |")
             lines.append("|-----------|-------------|------|")
             for it in tests:
-                tc     = it.test_method.class_name
-                tm     = it.test_method.method_name
-                ln     = it.test_method.line_number
-                fname  = _os.path.basename(it.test_method.file_path) if it.test_method.file_path else "—"
+                tc    = it.test_method.class_name
+                tm    = it.test_method.method_name
+                ln    = it.test_method.line_number
+                fname = _os.path.basename(it.test_method.file_path) if it.test_method.file_path else "—"
                 lines.append(f"| `{tc}` | `{tm}()` | `{fname}:{ln}` |")
             lines.append("")
 
@@ -443,6 +485,19 @@ class CiSummaryReporter:
                 seen_chains.add(key)
                 chain = " → ".join(reversed(it.call_path))
                 lines.append(f"- {chain}")
+        lines.append("")
+        lines.append("</details>")
+        lines.append("")
+
+        # ── Section 4: TestNG XML (collapsible, copyable) ─────────────────
+        lines.append("<details>")
+        lines.append("<summary>🧬 TestNG XML — run only impacted tests</summary>")
+        lines.append("")
+        lines.append("Copy this into your `testng.xml` to run only the tests affected by this PR:")
+        lines.append("")
+        lines.append("```xml")
+        lines.append(self._build_testng_xml(report.impacted_tests))
+        lines.append("```")
         lines.append("")
         lines.append("</details>")
         lines.append("")
