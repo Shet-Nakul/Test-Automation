@@ -104,8 +104,12 @@ class SeleniumImpactAnalyzer:
         print(f"      Changed locators (raw):  {len(changed_locators)} locator(s)")
         if changed_scoped_locators:
             print(f"      Changed locators (scoped): {len(changed_scoped_locators)} field(s)")
-            for cls, field, val in changed_scoped_locators:
-                print(f"        → {cls}#{field} = '{val[:60]}'")
+            for item in changed_scoped_locators:
+                cls, field = item[0], item[1]
+                old_val = item[2] if len(item) > 2 else ""
+                new_val = item[3] if len(item) > 3 else ""
+                arrow = f"{old_val[:45]} → {new_val[:45]}" if new_val else old_val[:60]
+                print(f"        → {cls}#{field} = {arrow}")
 
         analyzer = ImpactAnalyzer(self._call_graph)
         report = analyzer.analyze(changed_methods, changed_locators, changed_scoped_locators)
