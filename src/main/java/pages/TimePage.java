@@ -11,9 +11,9 @@ public class TimePage extends BasePage {
 
     // Locators
     private By timeHeader = By.xpath("//h6[text()='Time']");
-    private By timesheetsMenu = By.xpath("//span[text()='Time']");
-    private By myTimesheetsOption = By.xpath("//a[text()='My Time']");
-    private By employeeTimesheetsOption = By.xpath("//a[text()='Employee Time']");
+    private By timesheetsMenu = By.xpath("//span[text()='Timesheets']");
+    private By myTimesheetsOption = By.xpath("//a[text()='My Timesheets']");
+    private By employeeTimesheetsOption = By.xpath("//a[text()='Employee Timesheets']");
     private By attendanceMenu = By.xpath("//span[text()='Attendance']");
     private By fromDateField = By.xpath("(//input[@placeholder='yyyy-dd-mm'])[1]");
     private By toDateField = By.xpath("(//input[@placeholder='yyyy-dd-mm'])[2]");
