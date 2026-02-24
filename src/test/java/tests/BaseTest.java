@@ -9,7 +9,6 @@ import org.testng.annotations.BeforeMethod;
 import java.time.Duration;
 
 public class BaseTest {
-
     protected WebDriver driver;
     protected final String BASE_URL = "https://opensource-demo.orangehrmlive.com/";
     protected final String VALID_USERNAME = "Admin";
@@ -17,21 +16,22 @@ public class BaseTest {
 
     @BeforeMethod
     public void setUp() {
-        // Setup ChromeDriver using WebDriverManager
         WebDriverManager.chromedriver().setup();
 
-        // Chrome options for better stability
         ChromeOptions options = new ChromeOptions();
-        options.addArguments("--start-maximized");
-        options.addArguments("--disable-notifications");
-        options.addArguments("--disable-popup-blocking");
+        options.addArguments(
+                "--headless=new",
+                "--no-sandbox",
+                "--disable-dev-shm-usage",
+                "--disable-gpu",
+                "--window-size=1920,1080",
+                "--disable-notifications",
+                "--disable-popup-blocking"
+        );
 
-        // Initialize driver
         driver = new ChromeDriver(options);
         driver.manage().timeouts().implicitlyWait(Duration.ofSeconds(10));
         driver.manage().timeouts().pageLoadTimeout(Duration.ofSeconds(30));
-
-        // Navigate to base URL
         driver.get(BASE_URL);
     }
 
