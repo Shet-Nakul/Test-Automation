@@ -324,38 +324,137 @@ class HtmlReporter:
 # ──────────────────────────────────────────────
 
 class CiSummaryReporter:
+    """
+    Generates a professional GitHub PR comment in Markdown.
 
-    def generate(self, report: ImpactReport) -> str:
+    Layout (when tests are impacted):
+      ┌─ 🚨 Status banner
+      ├─ 📝 Changes section  — field name | old xpath → new xpath per changed locator
+      │                       — method names for method changes
+      ├─ 🧪 Impact table     — grouped BY CHANGE: each change shows which tests it broke
+      ├─ 📞 Call chains      — collapsible detail
+      └─ Footer summary line
+
+    Layout (when no tests impacted):
+      └─ ✅ Short green banner only
+    """
+
+    def generate(self, report) -> str:
         lines = []
+        total = len(report.unique_test_names)
+
+        # ── Zero-impact: short green banner only ─────────────────────────
+        if total == 0:
+            lines.append("> ✅ **No tests impacted — safe to merge.**")
+            return "\n".join(lines)
+
+        # ── Banner ────────────────────────────────────────────────────────
+        lines.append(f"> 🚨 **{total} test case(s) impacted — merge is blocked until reviewed.**")
+        lines.append("")
+        lines.append("---")
+        lines.append("")
         lines.append("## 🔍 Selenium Impact Analysis")
         lines.append("")
 
+        # ── Section 1: What Changed ───────────────────────────────────────
+        lines.append("### 📝 What Changed")
+        lines.append("")
+
+        # Locator changes: field name | old xpath → new xpath
+        if report.scoped_locator_changes:
+            lines.append("**Locator Changes:**")
+            lines.append("")
+            lines.append("| Class | Field | Old XPath / Selector | New XPath / Selector |")
+            lines.append("|-------|-------|----------------------|----------------------|")
+            seen_fields = set()
+            for item in report.scoped_locator_changes:
+                class_name = item[0]
+                field_name = item[1]
+                old_val    = item[2] if len(item) > 2 else ""
+                new_val    = item[3] if len(item) > 3 else ""
+                key = f"{class_name}#{field_name}"
+                if key in seen_fields:
+                    continue
+                seen_fields.add(key)
+                old_str = f"`{old_val}`" if old_val else "—"
+                new_str = f"`{new_val}`" if new_val else "—"
+                lines.append(f"| `{class_name}` | `{field_name}` | {old_str} | {new_str} |")
+            lines.append("")
+
+        # Method changes
         if report.changed_methods:
-            lines.append("**Changed Methods:**")
+            lines.append("**Modified Methods:**")
+            lines.append("")
             for m in report.changed_methods:
-                lines.append(f"- `{m}`")
+                lines.append(f"- `{m}()`")
             lines.append("")
 
-        if report.changed_locators:
-            lines.append("**Changed Locators:**")
-            for loc in report.changed_locators[:10]:  # limit for PR comment
-                lines.append(f"- `{loc[:80]}`")
-            lines.append("")
+        # ── Section 2: Impact table — grouped BY CHANGE ───────────────────
+        # For each change (locator or method), list the tests it broke.
+        lines.append("### 🧪 Impacted Tests — Grouped by Change")
+        lines.append("")
 
-        unique_tests = report.unique_test_names
-        if not unique_tests:
-            lines.append("✅ **No impacted test cases found.**")
-        else:
-            lines.append(f"🚨 **{len(unique_tests)} test case(s) impacted:**")
+        # Group impacted tests by their change_root
+        from collections import OrderedDict
+        groups = OrderedDict()
+        for it in report.impacted_tests:
+            root = it.change_root
+            if root not in groups:
+                groups[root] = []
+            key = it.test_method.full_qualified
+            if not any(x.test_method.full_qualified == key for x in groups[root]):
+                groups[root].append(it)
+
+        import os as _os
+        for change_root, tests in groups.items():
+            # Format the change label
+            if change_root.startswith("LOCATOR:"):
+                raw = change_root[len("LOCATOR:"):]
+                if "(" in raw:
+                    fname, cname = raw.rsplit("(", 1)
+                    label = f"🔗 Locator: `{fname.strip()}` in `{cname.rstrip(')')}`"
+                else:
+                    label = f"🔗 Locator: `{raw}`"
+            else:
+                label = f"⚙️ Method: `{change_root}()`"
+
+            lines.append(f"**{label}**")
             lines.append("")
             lines.append("| Test Class | Test Method | File |")
             lines.append("|-----------|-------------|------|")
-            seen = set()
-            for it in report.impacted_tests:
-                if it.test_method.full_qualified in seen:
+            for it in tests:
+                tc     = it.test_method.class_name
+                tm     = it.test_method.method_name
+                ln     = it.test_method.line_number
+                fname  = _os.path.basename(it.test_method.file_path) if it.test_method.file_path else "—"
+                lines.append(f"| `{tc}` | `{tm}()` | `{fname}:{ln}` |")
+            lines.append("")
+
+        # ── Section 3: Call chains (collapsible) ─────────────────────────
+        lines.append("<details>")
+        lines.append("<summary>📞 Full call chain details</summary>")
+        lines.append("")
+        seen_chains = set()
+        for change_root, tests in groups.items():
+            for it in tests:
+                key = (it.test_method.full_qualified, it.change_root)
+                if key in seen_chains:
                     continue
-                seen.add(it.test_method.full_qualified)
-                fname = os.path.basename(it.test_method.file_path)
-                lines.append(f"| `{it.test_method.class_name}` | `{it.test_method.method_name}()` | {fname}:{it.test_method.line_number} |")
+                seen_chains.add(key)
+                chain = " → ".join(reversed(it.call_path))
+                lines.append(f"- {chain}")
+        lines.append("")
+        lines.append("</details>")
+        lines.append("")
+
+        # ── Footer ────────────────────────────────────────────────────────
+        lines.append("---")
+        n_loc     = len({f"{i[0]}#{i[1]}" for i in report.scoped_locator_changes})
+        n_methods = len(report.changed_methods)
+        lines.append(
+            f"_🔍 {total} test(s) require attention "
+            f"· {n_loc} locator change(s) "
+            f"· {n_methods} method change(s)_"
+        )
 
         return "\n".join(lines)

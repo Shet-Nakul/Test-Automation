@@ -87,10 +87,13 @@ class FileChange:
     changed_methods: List[str] = field(default_factory=list)   # method names
     changed_locators: List[str] = field(default_factory=list)  # xpath/css values (raw)
     hunk_contexts: List[str] = field(default_factory=list)     # method context from @@ headers
-    # NEW: scoped locator changes — (class_name, field_name, xpath_value)
-    # Derived from the file path + variable declaration line in the diff
-    # e.g. ("AdminPage", "addBtn", "//button[normalize-space()='Add Admin']")
+    # Scoped locator changes — (class_name, field_name, old_xpath, new_xpath)
+    # old_xpath = value on the REMOVED (-) line
+    # new_xpath = value on the ADDED   (+) line
+    # e.g. ("AdminPage", "addBtn", "//button[normalize-space()='Add']", "//button[normalize-space()='Add Admin']")
     scoped_locator_changes: List[tuple] = field(default_factory=list)
+    # Internal builder dict: field_name → {old: value, new: value}
+    _scoped_builder: dict = field(default_factory=dict, repr=False)
 
 
 @dataclass
@@ -113,12 +116,12 @@ class DiffResult:
 
     @property
     def all_scoped_locator_changes(self) -> List[tuple]:
-        """Returns list of (class_name, field_name, xpath_value) for precise scoped lookup."""
+        """Returns list of (class_name, field_name, old_xpath, new_xpath) for precise scoped lookup."""
         result = []
         seen = set()
         for fc in self.file_changes:
             for item in fc.scoped_locator_changes:
-                key = (item[0], item[1])
+                key = (item[0], item[1])   # class + field name = unique key
                 if key not in seen:
                     seen.add(key)
                     result.append(item)
@@ -259,7 +262,16 @@ class GitDiffAnalyzer:
                 fc.removed_lines.append(line)
                 self._extract_locators_from_line(line, fc, class_name_from_file, changed=True)
 
-            # Deduplicate — preserve order, remove noise words
+            # Finalise scoped_locator_changes from builder
+            # Each entry: (class_name, field_name, old_xpath, new_xpath)
+            for key, data in fc._scoped_builder.items():
+                old_val = data['old'] or ''
+                new_val = data['new'] or ''
+                fc.scoped_locator_changes.append(
+                    (data['class'], data['field'], old_val, new_val)
+                )
+
+            # Deduplicate methods — preserve order, remove noise words
             _noise = {'if','while','for','switch','catch','try','else','new','class','super','this'}
             seen = set()
             clean_methods = []
@@ -301,15 +313,19 @@ class GitDiffAnalyzer:
         """Extract locator values from a line, also capturing field names for scoped lookup."""
 
         # ── SCOPED extraction: capture field_name + xpath_value together ──
-        # This is the precise path: we know class + field + value from one line
+        # Stores in _scoped_builder[field_name] = {old/new: value}
+        # is_removed=True means this came from a '-' line (old value)
+        # is_removed=False means this came from a '+' line (new value)
         for m in LOCATOR_FIELD_WITH_NAME_RE.finditer(line):
-            field_name = m.group(1)
+            field_name  = m.group(1)
             xpath_value = m.group(2)
             if class_name:
-                entry = (class_name, field_name, xpath_value)
-                if entry not in fc.scoped_locator_changes:
-                    fc.scoped_locator_changes.append(entry)
-            # Also add raw value for fallback
+                key = f"{class_name}#{field_name}"
+                entry = fc._scoped_builder.setdefault(key, {'class': class_name, 'field': field_name, 'old': None, 'new': None})
+                if changed:   # removed line = old value
+                    entry['old'] = xpath_value
+                else:         # added line = new value
+                    entry['new'] = xpath_value
             if xpath_value not in fc.changed_locators:
                 fc.changed_locators.append(xpath_value)
 
@@ -318,9 +334,12 @@ class GitDiffAnalyzer:
             xpath_value = m.group(1)
             field_name  = m.group(2)
             if class_name:
-                entry = (class_name, field_name, xpath_value)
-                if entry not in fc.scoped_locator_changes:
-                    fc.scoped_locator_changes.append(entry)
+                key = f"{class_name}#{field_name}"
+                entry = fc._scoped_builder.setdefault(key, {'class': class_name, 'field': field_name, 'old': None, 'new': None})
+                if changed:
+                    entry['old'] = xpath_value
+                else:
+                    entry['new'] = xpath_value
             if xpath_value not in fc.changed_locators:
                 fc.changed_locators.append(xpath_value)
 

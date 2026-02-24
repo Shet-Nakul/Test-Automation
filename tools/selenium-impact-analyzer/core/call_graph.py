@@ -149,6 +149,8 @@ class ImpactReport:
     changed_locators: List[str]
     impacted_tests: List[ImpactedTest]
     all_impacted_fq: Set[str]     # all nodes in blast radius (not just tests)
+    # 4-tuples: (class_name, field_name, old_xpath, new_xpath) — for from→to display
+    scoped_locator_changes: List[tuple] = field(default_factory=list)
 
     @property
     def unique_test_names(self) -> List[str]:
@@ -192,9 +194,13 @@ class ImpactAnalyzer:
         # ── Resolve SCOPED locator changes (precise - no cross-class pollution) ──
         # Input: (class_name, field_name, xpath_value) tuples from git diff
         # Lookup: "ClassName#fieldName" → only methods in THAT class using THAT field
-        for class_name, field_name, xpath_value in (changed_scoped_locators or []):
-            scoped_key = f"{class_name}#{field_name}"
-            label = f"LOCATOR:{field_name} ({class_name})"
+        for scoped_item in (changed_scoped_locators or []):
+            # Support both 3-tuple (class, field, value) and 4-tuple (class, field, old, new)
+            class_name  = scoped_item[0]
+            field_name  = scoped_item[1]
+            xpath_value = scoped_item[3] if len(scoped_item) == 4 else scoped_item[2]
+            scoped_key  = f"{class_name}#{field_name}"
+            label       = f"LOCATOR:{field_name} ({class_name})"
 
             if scoped_key in self.graph.scoped_field_to_methods:
                 for fq in self.graph.scoped_field_to_methods[scoped_key]:
@@ -248,7 +254,8 @@ class ImpactAnalyzer:
             changed_methods=changed_methods,
             changed_locators=changed_locators,
             impacted_tests=impacted_tests,
-            all_impacted_fq=all_impacted
+            all_impacted_fq=all_impacted,
+            scoped_locator_changes=list(changed_scoped_locators or [])
         )
 
     def _bfs_reverse(self, start_fq: str, change_root: str) -> List[ImpactedTest]:
