@@ -1,0 +1,134 @@
+# ============================================================
+# Selenium Impact Analyzer — GitHub Actions Workflow
+# ============================================================
+# Triggers on every Pull Request (opened, updated, reopened).
+# Scans changed Java files, traces the call graph, and
+# comments the impacted @Test cases directly on the PR.
+# ============================================================
+
+name: Selenium Impact Analysis
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - '**.java'          # Only triggers when Java files change
+
+jobs:
+  impact-analysis:
+    name: Detect Impacted Tests
+    runs-on: ubuntu-latest   # Runs on Linux agent in GitHub cloud
+
+    steps:
+      # ── 1. Checkout the automation repo with full git history ──
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0     # IMPORTANT: fetch full history so git diff works
+
+      # ── 2. Setup Python (tool needs Python 3.7+) ──
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      # ── 3. Checkout the impact analyzer tool ──
+      #    Option A (Recommended): Tool lives INSIDE your repo under /tools/
+      #    Option B: Tool is a separate repo — clone it here
+      #
+      #    If you placed the tool inside your repo (tools/selenium-impact-analyzer/):
+      #    → Skip this step entirely, the tool is already checked out above.
+      #
+      #    If the tool is a SEPARATE repo, uncomment the lines below:
+      # - name: Checkout Impact Analyzer Tool
+      #   uses: actions/checkout@v4
+      #   with:
+      #     repository: your-org/selenium-impact-analyzer
+      #     path: selenium-impact-analyzer
+      #     token: ${{ secrets.GITHUB_TOKEN }}
+
+      # ── 4. Run the impact analysis ──
+      - name: Run Impact Analysis
+        id: impact
+        run: |
+          # If tool is inside your repo at tools/selenium-impact-analyzer/
+          TOOL_PATH="tools/selenium-impact-analyzer"
+
+          # If tool is a separate cloned repo (uncomment if using Option B above)
+          # TOOL_PATH="selenium-impact-analyzer"
+
+          python3 $TOOL_PATH/analyzer.py \
+            --repo . \
+            --base ${{ github.event.pull_request.base.sha }} \
+            --head ${{ github.event.pull_request.head.sha }} \
+            --html impact_report.html \
+            --json impact_report.json \
+            --ci \
+            --verbose > ci_summary.md 2>&1 || true
+
+          echo "Analysis complete"
+          cat ci_summary.md
+
+      # ── 5. Post results as a PR comment ──
+      - name: Comment on PR
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+
+            let summary = '';
+            try {
+              summary = fs.readFileSync('ci_summary.md', 'utf8');
+            } catch(e) {
+              summary = '⚠️ Impact analysis output not found.';
+            }
+
+            // Find and delete any previous bot comment on this PR
+            const comments = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            for (const comment of comments.data) {
+              if (comment.user.login === 'github-actions[bot]' &&
+                  comment.body.includes('Selenium Impact Analysis')) {
+                await github.rest.issues.deleteComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  comment_id: comment.id,
+                });
+              }
+            }
+
+            // Post fresh comment
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: `## 🔍 Selenium Impact Analysis\n\n${summary}\n\n---\n_Triggered by commit \`${{ github.event.pull_request.head.sha }}\`_`
+            });
+
+      # ── 6. Upload HTML report as downloadable artifact ──
+      - name: Upload Impact Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: impact-report-${{ github.event.pull_request.number }}
+          path: |
+            impact_report.html
+            impact_report.json
+          retention-days: 30
+
+      # ── 7. (Optional) Fail the job if tests are impacted ──
+      #    Remove or comment this step if you want the PR to
+      #    still merge even when tests are impacted (just warn).
+      # - name: Fail if tests impacted
+      #   run: |
+      #     IMPACTED=$(python3 -c "import json; d=json.load(open('impact_report.json')); print(d['summary']['impacted_test_count'])")
+      #     echo "Impacted test count: $IMPACTED"
+      #     if [ "$IMPACTED" -gt "0" ]; then
+      #       echo "❌ $IMPACTED test(s) impacted. Please review before merging."
+      #       exit 1
+      #     fi
