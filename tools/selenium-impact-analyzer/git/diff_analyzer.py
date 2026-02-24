@@ -55,6 +55,22 @@ FINDBY_RE     = re.compile(
     r'@FindBy\s*\(\s*(?:xpath|css|id|name|className|tagName|linkText|partialLinkText)\s*=\s*"([^"]+)"'
 )
 
+# Pattern to extract BOTH field name AND xpath from a locator field declaration line
+# e.g. "private final By addBtn = By.xpath("//button[...]");"
+# Groups: (1) field_name, (2) xpath_value
+LOCATOR_FIELD_WITH_NAME_RE = re.compile(
+    r'(?:private|public|protected)?\s*(?:final\s+)?'
+    r'(?:By|String)\s+(\w+)\s*=\s*'
+    r'By\.(?:xpath|cssSelector|id|name|className|tagName|linkText|partialLinkText)\s*\(\s*"([^"]+)"'
+)
+
+# @FindBy with field name
+FINDBY_WITH_NAME_RE = re.compile(
+    r'@FindBy\s*\(\s*(?:xpath|css|id|name|className|tagName|linkText|partialLinkText)\s*=\s*"([^"]+)"\s*\)\s*'
+    r'(?:@\w+\s*)*(?:private|public|protected)?\s*(?:static\s+)?(?:final\s+)?'
+    r'(?:WebElement|By|List\s*<\s*WebElement\s*>)\s+(\w+)'
+)
+
 # Hunk header: @@ -a,b +c,d @@ optional context
 HUNK_RE = re.compile(r'^@@[^@]+@@\s*(.*)', re.MULTILINE)
 
@@ -69,8 +85,12 @@ class FileChange:
     added_lines: List[str] = field(default_factory=list)
     removed_lines: List[str] = field(default_factory=list)
     changed_methods: List[str] = field(default_factory=list)   # method names
-    changed_locators: List[str] = field(default_factory=list)  # xpath/css values
+    changed_locators: List[str] = field(default_factory=list)  # xpath/css values (raw)
     hunk_contexts: List[str] = field(default_factory=list)     # method context from @@ headers
+    # NEW: scoped locator changes — (class_name, field_name, xpath_value)
+    # Derived from the file path + variable declaration line in the diff
+    # e.g. ("AdminPage", "addBtn", "//button[normalize-space()='Add Admin']")
+    scoped_locator_changes: List[tuple] = field(default_factory=list)
 
 
 @dataclass
@@ -90,6 +110,19 @@ class DiffResult:
         for fc in self.file_changes:
             locators.extend(fc.changed_locators)
         return list(set(locators))
+
+    @property
+    def all_scoped_locator_changes(self) -> List[tuple]:
+        """Returns list of (class_name, field_name, xpath_value) for precise scoped lookup."""
+        result = []
+        seen = set()
+        for fc in self.file_changes:
+            for item in fc.scoped_locator_changes:
+                key = (item[0], item[1])
+                if key not in seen:
+                    seen.add(key)
+                    result.append(item)
+        return result
 
 
 # ──────────────────────────────────────────────
@@ -175,18 +208,23 @@ class GitDiffAnalyzer:
                     if sig_match:
                         fc.changed_methods.append(sig_match.group(1))
 
+            # Derive class name from file path
+            # e.g. "src/test/java/pages/AdminPage.java" → "AdminPage"
+            import os as _os
+            class_name_from_file = _os.path.splitext(_os.path.basename(file_path))[0]
+
             # Process added lines
             for m in ADDED_LINE_RE.finditer(section):
                 line = m.group(1)
                 fc.added_lines.append(line)
-                self._extract_from_line(line, fc)
+                self._extract_from_line(line, fc, class_name_from_file)
 
-            # Process removed lines
+            # Process removed lines — also extract field names that CHANGED
+            # (old value removed = that field's locator changed)
             for m in REMOVED_LINE_RE.finditer(section):
                 line = m.group(1)
                 fc.removed_lines.append(line)
-                # If a locator was removed (i.e. changed), track it
-                self._extract_locators_from_line(line, fc, changed=True)
+                self._extract_locators_from_line(line, fc, class_name_from_file, changed=True)
 
             # Deduplicate
             fc.changed_methods = list(set(fc.changed_methods))
@@ -209,23 +247,46 @@ class GitDiffAnalyzer:
                 sections.append((m.group(1).strip(), part))
         return sections
 
-    def _extract_from_line(self, line: str, fc: FileChange):
+    def _extract_from_line(self, line: str, fc: FileChange, class_name: str = ""):
         """Extract method signatures and locators from a changed (+) line."""
-        # Method signatures
         sig_match = METHOD_SIG_RE.search(line)
         if sig_match:
             name = sig_match.group(1)
             if name not in ('if', 'while', 'for', 'catch', 'switch'):
                 fc.changed_methods.append(name)
 
-        # Locators
-        self._extract_locators_from_line(line, fc)
+        self._extract_locators_from_line(line, fc, class_name)
 
-    def _extract_locators_from_line(self, line: str, fc: FileChange, changed: bool = False):
-        """Extract locator values from a line."""
+    def _extract_locators_from_line(self, line: str, fc: FileChange, class_name: str = "", changed: bool = False):
+        """Extract locator values from a line, also capturing field names for scoped lookup."""
+
+        # ── SCOPED extraction: capture field_name + xpath_value together ──
+        # This is the precise path: we know class + field + value from one line
+        for m in LOCATOR_FIELD_WITH_NAME_RE.finditer(line):
+            field_name = m.group(1)
+            xpath_value = m.group(2)
+            if class_name:
+                entry = (class_name, field_name, xpath_value)
+                if entry not in fc.scoped_locator_changes:
+                    fc.scoped_locator_changes.append(entry)
+            # Also add raw value for fallback
+            if xpath_value not in fc.changed_locators:
+                fc.changed_locators.append(xpath_value)
+
+        # @FindBy with field name
+        for m in FINDBY_WITH_NAME_RE.finditer(line):
+            xpath_value = m.group(1)
+            field_name  = m.group(2)
+            if class_name:
+                entry = (class_name, field_name, xpath_value)
+                if entry not in fc.scoped_locator_changes:
+                    fc.scoped_locator_changes.append(entry)
+            if xpath_value not in fc.changed_locators:
+                fc.changed_locators.append(xpath_value)
+
+        # ── Fallback raw extraction (catches inline By.xpath in method bodies) ──
         for pattern in [BY_XPATH_RE, BY_CSS_RE, BY_ID_RE, BY_NAME_RE,
-                        BY_CLASS_RE, BY_TAG_RE, BY_LINK_RE, BY_PARTIAL_RE,
-                        LOCATOR_FIELD_RE, FINDBY_RE]:
+                        BY_CLASS_RE, BY_TAG_RE, BY_LINK_RE, BY_PARTIAL_RE, FINDBY_RE]:
             for m in pattern.finditer(line):
                 val = m.group(1)
                 if val and val not in fc.changed_locators:

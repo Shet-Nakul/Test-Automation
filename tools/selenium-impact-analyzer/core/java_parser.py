@@ -28,7 +28,8 @@ class MethodInfo:
     annotations: List[str]
     body: str                    # raw method body text
     calls: Set[str] = field(default_factory=set)      # method names called inside body
-    locators: List[str] = field(default_factory=list) # xpath/css strings used
+    locators: List[str] = field(default_factory=list) # xpath/css inline strings used
+    locator_fields_used: Set[str] = field(default_factory=set)  # class-level field names referenced (e.g. 'employeeListHeader')
 
 
 @dataclass
@@ -39,6 +40,7 @@ class ParsedFile:
     imports: List[str]
     methods: List[MethodInfo]
     raw_source: str
+    class_level_locators: Dict[str, str] = field(default_factory=dict)  # fieldName → xpathValue
 
 
 # ──────────────────────────────────────────────
@@ -266,7 +268,8 @@ class JavaFileParser:
             package=package,
             imports=imports,
             methods=methods,
-            raw_source=source
+            raw_source=source,
+            class_level_locators=class_level_locators
         )
 
     def _extract_methods(
@@ -308,11 +311,16 @@ class JavaFileParser:
             # Extract locators from body
             locators = extract_locators_from_text(body)
 
-            # Resolve locator field usages (if body references a field name used as locator)
+            # Resolve locator field usages:
+            # Track BOTH the resolved xpath value AND the field name used.
+            # This lets the impact analyzer do scoped lookups:
+            #   "which field of THIS class changed" → which methods use that field
+            locator_fields_used: Set[str] = set()
             for field_name, locator_value in class_level_locators.items():
                 if re.search(r'\b' + re.escape(field_name) + r'\b', body):
+                    locator_fields_used.add(field_name)   # track the field NAME
                     if locator_value not in locators:
-                        locators.append(locator_value)
+                        locators.append(locator_value)    # also keep resolved value
 
             methods.append(MethodInfo(
                 class_name=class_name,
@@ -324,7 +332,8 @@ class JavaFileParser:
                 annotations=annotations,
                 body=body,
                 calls=calls,
-                locators=locators
+                locators=locators,
+                locator_fields_used=locator_fields_used
             ))
 
         return methods

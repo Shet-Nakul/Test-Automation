@@ -37,8 +37,14 @@ class CallGraph:
     # Reverse graph: callee_fq → set of caller_fq
     reverse: Dict[str, Set[str]] = field(default_factory=lambda: defaultdict(set))
 
-    # Locator string → set of method fq that use this locator
+    # Raw xpath/css string → methods that use it inline (in method body directly)
     locator_to_methods: Dict[str, Set[str]] = field(default_factory=lambda: defaultdict(set))
+    # ClassName#fieldName → methods that reference that field
+    # Key: "AdminPage#addBtn"  Value: {"AdminPage#clickAddBtn", ...}
+    # This is used for SCOPED locator lookup - avoids cross-class false positives
+    scoped_field_to_methods: Dict[str, Set[str]] = field(default_factory=lambda: defaultdict(set))
+    # ClassName → {fieldName → xpathValue}  (for reverse lookup)
+    class_field_map: Dict[str, Dict[str, str]] = field(default_factory=lambda: defaultdict(dict))
 
     # All @Test methods
     test_methods: List[MethodInfo] = field(default_factory=list)
@@ -53,6 +59,13 @@ class CallGraphBuilder:
     def build(self, parsed_files: List[ParsedFile]) -> CallGraph:
         graph = CallGraph()
 
+        # ── Phase 0: build class-level field → xpath map from source ──────
+        # We re-derive this from the parser's LOCATOR_FIELD_RE / @FindBy results
+        # stored in pf.class_level_locators (added below to ParsedFile)
+        for pf in parsed_files:
+            if hasattr(pf, 'class_level_locators'):
+                graph.class_field_map[pf.class_name] = pf.class_level_locators
+
         # ── Phase 1: register all methods ──────────────────────
         for pf in parsed_files:
             for method in pf.methods:
@@ -61,9 +74,15 @@ class CallGraphBuilder:
                 if method.is_test:
                     graph.test_methods.append(method)
 
-                # Register locators
+                # Register inline locators (xpath strings directly in method body)
                 for loc in method.locators:
                     graph.locator_to_methods[loc].add(method.full_qualified)
+
+                # Register SCOPED field-name → method mapping
+                # Key: "ClassName#fieldName" so we know WHICH class's field was changed
+                for field_name in method.locator_fields_used:
+                    scoped_key = f"{method.class_name}#{field_name}"
+                    graph.scoped_field_to_methods[scoped_key].add(method.full_qualified)
 
         # ── Phase 2: build forward edges & reverse edges ────────
         for pf in parsed_files:
@@ -117,33 +136,56 @@ class ImpactAnalyzer:
 
     def analyze(
         self,
-        changed_methods: List[str],          # list of method names or class#method
-        changed_locators: List[str],          # list of xpath/css strings that changed
+        changed_methods: List[str],
+        changed_locators: List[str],
+        changed_scoped_locators: Optional[List[tuple]] = None,
     ) -> ImpactReport:
         """
-        Entry point: given changed methods and locators,
+        Entry point: given changed methods and/or locators,
         return all impacted @Test cases with their call paths.
-        """
-        # Resolve changed method names → fq names
-        starting_fq: Dict[str, str] = {}  # fq → change_root label
 
+        changed_scoped_locators = list of (class_name, field_name, xpath_value)
+        This is the precise input from git diff — it knows WHICH class's field changed.
+        Using this avoids false positives from other classes that share the same xpath.
+        """
+        starting_fq: Dict[str, str] = {}
+
+        # ── Resolve changed method names ────────────────────────────────────
         for cm in changed_methods:
             resolved = self._resolve_method(cm)
             for fq in resolved:
                 starting_fq[fq] = cm
 
-        # Resolve changed locators → methods that use them
+        # ── Resolve SCOPED locator changes (precise - no cross-class pollution) ──
+        # Input: (class_name, field_name, xpath_value) tuples from git diff
+        # Lookup: "ClassName#fieldName" → only methods in THAT class using THAT field
+        for class_name, field_name, xpath_value in (changed_scoped_locators or []):
+            scoped_key = f"{class_name}#{field_name}"
+            label = f"LOCATOR:{field_name} ({class_name})"
+
+            if scoped_key in self.graph.scoped_field_to_methods:
+                for fq in self.graph.scoped_field_to_methods[scoped_key]:
+                    starting_fq[fq] = label
+            else:
+                # Fallback: restrict xpath match to same class only
+                for fq, method in self.graph.method_map_fq.items():
+                    if method.class_name == class_name and xpath_value in method.locators:
+                        starting_fq[fq] = label
+
+        # ── Resolve raw xpath/css strings (CLI --locators flag fallback) ────
+        # Only used when no scoped info is available (e.g. direct CLI input).
+        # Respects already-found entries from scoped lookup above.
         for loc in changed_locators:
-            # exact match
             if loc in self.graph.locator_to_methods:
                 for fq in self.graph.locator_to_methods[loc]:
-                    starting_fq[fq] = f"LOCATOR:{loc}"
+                    if fq not in starting_fq:
+                        starting_fq[fq] = f"LOCATOR:{loc}"
             else:
-                # partial match (locator might be substring)
                 for stored_loc, methods in self.graph.locator_to_methods.items():
                     if loc in stored_loc or stored_loc in loc:
                         for fq in methods:
-                            starting_fq[fq] = f"LOCATOR:{loc}"
+                            if fq not in starting_fq:
+                                starting_fq[fq] = f"LOCATOR:{loc}" 
 
         # BFS upward from each starting node
         impacted_tests: List[ImpactedTest] = []

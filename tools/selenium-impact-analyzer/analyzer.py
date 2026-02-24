@@ -71,7 +71,11 @@ class SeleniumImpactAnalyzer:
         print(f"[3/3] Detecting changes: {base_ref}..{head_ref}")
         diff_analyzer = GitDiffAnalyzer()
         diff_result = diff_analyzer.from_repo(self.repo_path, base_ref, head_ref)
-        return self._run_analysis(diff_result.all_changed_methods, diff_result.all_changed_locators)
+        return self._run_analysis(
+            diff_result.all_changed_methods,
+            diff_result.all_changed_locators,
+            diff_result.all_scoped_locator_changes   # ← precise scoped input
+        )
 
     def analyze_from_diff_file(self, diff_file: str):
         """Detect changes from a .diff file and analyze impact."""
@@ -79,7 +83,11 @@ class SeleniumImpactAnalyzer:
         print(f"[3/3] Parsing diff file: {diff_file}")
         diff_analyzer = GitDiffAnalyzer()
         diff_result = diff_analyzer.from_diff_file(diff_file)
-        return self._run_analysis(diff_result.all_changed_methods, diff_result.all_changed_locators)
+        return self._run_analysis(
+            diff_result.all_changed_methods,
+            diff_result.all_changed_locators,
+            diff_result.all_scoped_locator_changes
+        )
 
     def analyze_direct(
         self,
@@ -91,12 +99,16 @@ class SeleniumImpactAnalyzer:
         print(f"[3/3] Analyzing direct input...")
         return self._run_analysis(changed_methods or [], changed_locators or [])
 
-    def _run_analysis(self, changed_methods: list, changed_locators: list):
-        print(f"      Changed methods: {changed_methods}")
-        print(f"      Changed locators: {len(changed_locators)} locator(s)")
+    def _run_analysis(self, changed_methods: list, changed_locators: list, changed_scoped_locators: list = None):
+        print(f"      Changed methods:         {changed_methods}")
+        print(f"      Changed locators (raw):  {len(changed_locators)} locator(s)")
+        if changed_scoped_locators:
+            print(f"      Changed locators (scoped): {len(changed_scoped_locators)} field(s)")
+            for cls, field, val in changed_scoped_locators:
+                print(f"        → {cls}#{field} = '{val[:60]}'")
 
         analyzer = ImpactAnalyzer(self._call_graph)
-        report = analyzer.analyze(changed_methods, changed_locators)
+        report = analyzer.analyze(changed_methods, changed_locators, changed_scoped_locators)
         return report
 
     def _ensure_graph(self):
