@@ -1,5 +1,6 @@
 # ============================================================
 # Selenium Impact Analyzer — GitHub Actions Workflow
+# With PR merge blocking
 # ============================================================
 
 name: Selenium Impact Analysis
@@ -15,7 +16,6 @@ jobs:
     name: Detect Impacted Tests
     runs-on: ubuntu-latest
 
-    # ── FIX 1: Explicit permissions for PR comment posting ──
     permissions:
       contents: read
       pull-requests: write
@@ -36,11 +36,9 @@ jobs:
 
       # ── 3. Run Impact Analysis ──
       - name: Run Impact Analysis
-        id: impact
         run: |
           TOOL_PATH="tools/selenium-impact-analyzer"
 
-          # Run analyzer - captures plain text output (no colors for CI)
           python3 $TOOL_PATH/analyzer.py \
             --repo . \
             --base ${{ github.event.pull_request.base.sha }} \
@@ -49,19 +47,30 @@ jobs:
             --json impact_report.json \
             --ci 2>&1 | tee ci_raw.txt || true
 
-          # ── FIX 2: Strip ANSI color codes so PR comment is clean markdown ──
+          # Strip ANSI color codes for clean PR comment
           sed 's/\x1b\[[0-9;]*m//g' ci_raw.txt > ci_summary.md
 
-          echo "--- Clean summary ---"
-          cat ci_summary.md
+          # ── Read impacted test count from JSON ──
+          IMPACTED=$(python3 -c "
+          import json, sys
+          try:
+              d = json.load(open('impact_report.json'))
+              print(d['summary']['impacted_test_count'])
+          except:
+              print(0)
+          ")
 
-      # ── 4. Post clean comment on PR ──
+          echo "IMPACTED_COUNT=$IMPACTED" >> $GITHUB_ENV
+          echo "Impacted test count: $IMPACTED"
+
+      # ── 4. Post comment on PR ──
       - name: Comment on PR
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const fs = require('fs');
+            const fs   = require('fs');
+            const count = parseInt(process.env.IMPACTED_COUNT || '0');
 
             let summary = '';
             try {
@@ -70,7 +79,12 @@ jobs:
               summary = '⚠️ Impact analysis output not found.';
             }
 
-            // Delete any previous bot comment on this PR (keeps it clean)
+            // Status banner at the top of the comment
+            const banner = count > 0
+              ? `> 🚨 **${count} test(s) impacted — merge is blocked until reviewed.**`
+              : `> ✅ **No tests impacted — safe to merge.**`;
+
+            // Delete previous bot comment to avoid duplicates
             const comments = await github.rest.issues.listComments({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -92,10 +106,10 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: context.issue.number,
-              body: `${summary}\n\n---\n_Triggered by commit \`${{ github.event.pull_request.head.sha }}\`_`
+              body: `${banner}\n\n${summary}\n\n---\n_Triggered by commit \`${{ github.event.pull_request.head.sha }}\`_`
             });
 
-      # ── 5. Upload HTML + JSON report as artifact ──
+      # ── 5. Upload HTML + JSON report ──
       - name: Upload Impact Report
         uses: actions/upload-artifact@v4
         if: always()
@@ -105,3 +119,22 @@ jobs:
             impact_report.html
             impact_report.json
           retention-days: 30
+
+      # ── 6. BLOCK MERGE if tests are impacted ──
+      # This step fails the entire job → GitHub blocks the merge button.
+      # The PR author must review impacted tests before merging.
+      - name: Block merge if tests impacted
+        run: |
+          COUNT=${{ env.IMPACTED_COUNT }}
+          if [ "$COUNT" -gt "0" ]; then
+            echo ""
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo "  ❌  MERGE BLOCKED"
+            echo "  $COUNT test case(s) are impacted by this PR."
+            echo "  Review the impacted tests in the PR comment above."
+            echo "  Once confirmed safe, an admin can override and merge."
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            exit 1
+          else
+            echo "✅ No tests impacted. Safe to merge."
+          fi
