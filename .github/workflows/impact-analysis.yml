@@ -10,6 +10,9 @@ on:
     types: [opened, synchronize, reopened]
     paths:
       - '**.java'
+      - '**.js'
+      - '**.ts'
+      - '**.py'
 
 jobs:
   impact-analysis:
@@ -34,13 +37,29 @@ jobs:
         with:
           python-version: '3.11'
 
-      # ── 3. Run Impact Analysis ──
+      # ── 3. Detect Project Language ──
+      - name: Detect Language
+        id: detect
+        run: |
+          if [ -f "pom.xml" ] || [ -f "build.gradle" ]; then
+            echo "LANG=java" >> $GITHUB_OUTPUT
+          elif [ -f "package.json" ]; then
+            echo "LANG=javascript" >> $GITHUB_OUTPUT
+          elif [ -f "requirements.txt" ] || [ -f "pyproject.toml" ] || [ -f "setup.py" ]; then
+            echo "LANG=python" >> $GITHUB_OUTPUT
+          else
+            echo "LANG=all" >> $GITHUB_OUTPUT
+          fi
+
+      # ── 4. Run Impact Analysis ──
       - name: Run Impact Analysis
         run: |
           TOOL_PATH="tools/selenium-impact-analyzer"
+          LANG=${{ steps.detect.outputs.LANG }}
 
           python3 $TOOL_PATH/analyzer.py \
             --repo . \
+            --lang $LANG \
             --base ${{ github.event.pull_request.base.sha }} \
             --head ${{ github.event.pull_request.head.sha }} \
             --html impact_report.html \
