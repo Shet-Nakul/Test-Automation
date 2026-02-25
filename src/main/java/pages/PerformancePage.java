@@ -10,10 +10,10 @@ import java.time.Duration;
 public class PerformancePage extends BasePage {
 
     // Locators
-    private By performanceHeader = By.xpath("//h6[text()='Performance']");
+    private By performanceHeader = By.xpath("//h6[text()='Performancee']");
     private By configureMenu = By.xpath("//span[text()='Configure']");
     private By kpisMenu = By.xpath("//a[text()='KPIs']");
-    private By trackersMenu = By.xpath("//a[text()='Trackers']");
+    private By trackersMenu = By.xpath("//a[text()='Trackers tra']");
     private By myReviewsMenu = By.xpath("//a[text()='My Reviews']");
     private By employeeReviewsMenu = By.xpath("//a[text()='Employee Reviews']");
     private By addButton = By.xpath("//button[normalize-space()='Add']");

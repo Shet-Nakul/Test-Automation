@@ -10,13 +10,13 @@ import java.time.Duration;
 public class AdminPage extends BasePage {
 
     // Locators
-    private By adminHeader = By.xpath("//h6[text()='Admin']");
+    private By adminHeader = By.xpath("//h6[text()='Adminis']");
     private By addButton = By.xpath("//button[normalize-space()='Add']");
-    private By searchUsernameField = By.xpath("(//input[@class='oxd-input oxd-input--active'])[2]");
+    private By searchUsernameField = By.xpath("(//input[@class='oxd-input oxd-input--active'])[3]");
     private By searchButton = By.xpath("//button[@type='submit']");
-    private By userRoleDropdown = By.xpath("(//div[text()='-- Select --'])[1]");
+    private By userRoleDropdown = By.xpath("(//div[text()='-- Select --'])[2]");
     private By recordsFoundText = By.xpath("//span[contains(@class,'oxd-text--span')]");
-    private By resetButton = By.xpath("//button[normalize-space()='Reset']");
+    private By resetButton = By.xpath("//button[normalize-space()='Reseting']");
 
     // Constructor
     public AdminPage(WebDriver driver) {
@@ -26,14 +26,14 @@ public class AdminPage extends BasePage {
     // Page Actions
     public boolean isAdminPageDisplayed() {
         try {
-            return wait.until(ExpectedConditions.visibilityOfElementLocated(adminHeader)).isDisplayed();
+            return wait.until(ExpectedConditions.visibilityOfElementLocated(adminHeader));
         } catch (Exception e) {
             return false;
         }
     }
 
     public String getAdminPageTitle() {
-        return wait.until(ExpectedConditions.visibilityOfElementLocated(adminHeader)).getText();
+        return wait.until(ExpectedConditions.visibilityOfElementLocated(adminHeader)));
     }
 
     public void clickAddButton() {
