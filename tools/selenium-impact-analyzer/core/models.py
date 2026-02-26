@@ -15,6 +15,7 @@ class MethodInfo:
     locators: List[str] = field(default_factory=list) # xpath/css inline strings used
     locator_fields_used: Set[str] = field(default_factory=set)  # class-level field names referenced
     typed_calls: Dict[str, Set[str]] = field(default_factory=dict)
+    package_name: str = ""
 
 @dataclass
 class ParsedFile:

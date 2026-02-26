@@ -132,7 +132,7 @@ class JavaParser(BaseParser):
             if not type_name[0].islower():
                 class_field_types[var_name] = type_name
 
-        methods = self._extract_methods(source, class_name, file_path, class_level_locators, class_field_types)
+        methods = self._extract_methods(source, class_name, file_path, class_level_locators, class_field_types, package)
 
         return ParsedFile(
             file_path=file_path, class_name=class_name, package=package, imports=imports,
@@ -140,7 +140,7 @@ class JavaParser(BaseParser):
             class_field_types=class_field_types
         )
 
-    def _extract_methods(self, source: str, class_name: str, file_path: str, class_level_locators: Dict[str, str], class_field_types: Dict[str, str]) -> List[MethodInfo]:
+    def _extract_methods(self, source: str, class_name: str, file_path: str, class_level_locators: Dict[str, str], class_field_types: Dict[str, str], package: str) -> List[MethodInfo]:
         methods = []
         for match in METHOD_RE.finditer(source):
             annotation_block, method_name = match.group(1), match.group(2)
@@ -169,7 +169,7 @@ class JavaParser(BaseParser):
                 class_name=class_name, method_name=method_name, full_qualified=fq,
                 file_path=file_path, line_number=line_num, is_test=is_test,
                 annotations=annotations, body=body, calls=calls, locators=locators,
-                locator_fields_used=locator_fields_used, typed_calls=typed_calls
+                locator_fields_used=locator_fields_used, typed_calls=typed_calls, package_name=package
             ))
         return methods
 

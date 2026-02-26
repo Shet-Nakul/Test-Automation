@@ -84,4 +84,35 @@ class CiSummaryReporter(BaseReporter):
             seen.add(key)
             lines.append(f"| `{it.test_method.class_name}` | `{it.test_method.method_name}()` | `{os.path.basename(it.test_method.file_path)}:{it.test_method.line_number}` |")
 
+        mapping = {}
+        for it in report.impacted_tests:
+            tm = it.test_method
+            if not tm.is_test: continue
+            if not tm.file_path.endswith('.java'): continue
+            pkg = tm.package_name.strip()
+            fqcn = f"{pkg}.{tm.class_name}" if pkg else tm.class_name
+            s = mapping.setdefault(fqcn, set())
+            s.add(tm.method_name)
+        if mapping:
+            lines.append("")
+            lines.append("### ▶ Runnable TestNG XML")
+            lines.append("")
+            xml_lines = []
+            xml_lines.append("<suite name=\"ImpactedSuite\">")
+            xml_lines.append("  <test name=\"ImpactedTests\">")
+            xml_lines.append("    <classes>")
+            for cls, methods in sorted(mapping.items()):
+                xml_lines.append(f"      <class name=\"{cls}\">")
+                xml_lines.append("        <methods>")
+                for m in sorted(methods):
+                    xml_lines.append(f"          <include name=\"{m}\"/>")
+                xml_lines.append("        </methods>")
+                xml_lines.append("      </class>")
+            xml_lines.append("    </classes>")
+            xml_lines.append("  </test>")
+            xml_lines.append("</suite>")
+            lines.append("```xml")
+            lines.extend(xml_lines)
+            lines.append("```")
+
         print("\n".join(lines))
