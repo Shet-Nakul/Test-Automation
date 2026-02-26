@@ -37,9 +37,10 @@ from reporters.html_reporter import HtmlReporter
 
 class SeleniumImpactAnalyzer:
 
-    def __init__(self, repo_path: str, verbose: bool = False):
+    def __init__(self, repo_path: str, verbose: bool = False, lang: str = 'all'):
         self.repo_path = os.path.abspath(repo_path)
         self.verbose = verbose
+        self.lang = (lang or 'all').lower()
         self._call_graph = None
         self._scan_time = 0
 
@@ -48,7 +49,14 @@ class SeleniumImpactAnalyzer:
         print(f"\n[1/3] Scanning repository: {self.repo_path}")
         start = time.time()
         parsed_files = []
-        for parser in (JavaParser(), JavascriptPlaywrightParser(), PythonPytestParser()):
+        parser_list = []
+        if self.lang in ('all', 'java'):
+            parser_list.append(JavaParser())
+        if self.lang in ('all', 'javascript'):
+            parser_list.append(JavascriptPlaywrightParser())
+        if self.lang in ('all', 'python'):
+            parser_list.append(PythonPytestParser())
+        for parser in parser_list:
             try:
                 parsed_files.extend(parser.scan_repository(self.repo_path))
             except Exception as e:
@@ -165,6 +173,7 @@ Examples:
     parser.add_argument('--json',     help='Save JSON report to this path')
     parser.add_argument('--ci',       action='store_true', help='Print CI-friendly markdown summary')
     parser.add_argument('--verbose',  action='store_true', help='Show call chains and blast radius')
+    parser.add_argument('--lang',     choices=['java','javascript','python','all'], default='all', help='Restrict parsing to a language')
 
     args = parser.parse_args()
 
@@ -174,7 +183,7 @@ Examples:
         sys.exit(1)
 
     # Initialize
-    analyzer = SeleniumImpactAnalyzer(args.repo, verbose=args.verbose)
+    analyzer = SeleniumImpactAnalyzer(args.repo, verbose=args.verbose, lang=args.lang)
     analyzer.build_call_graph()
 
     # Detect changes
