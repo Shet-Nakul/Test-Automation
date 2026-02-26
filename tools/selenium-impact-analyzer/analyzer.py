@@ -21,10 +21,14 @@ import time
 # Make sure local imports work
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from core.java_parser import RepositoryScanner
-from core.call_graph import CallGraphBuilder, ImpactAnalyzer
-from git.diff_analyzer import GitDiffAnalyzer
-from output.reporter import ConsoleReporter, JsonReporter, HtmlReporter, CiSummaryReporter
+from parsers.java_parser import JavaParser
+from parsers.javascript_parser import JavascriptPlaywrightParser
+from parsers.python_parser import PythonPytestParser
+from core.engine import CallGraphBuilder, ImpactAnalyzer
+from providers.git_provider import GitProvider
+from reporters.console import ConsoleReporter, CiSummaryReporter
+from reporters.json_reporter import JsonReporter
+from reporters.html_reporter import HtmlReporter
 
 
 # ──────────────────────────────────────────────
@@ -43,11 +47,15 @@ class SeleniumImpactAnalyzer:
         """Scan the repository and build the complete call graph."""
         print(f"\n[1/3] Scanning repository: {self.repo_path}")
         start = time.time()
-        scanner = RepositoryScanner(self.repo_path)
-        parsed_files = scanner.scan()
+        parsed_files = []
+        for parser in (JavaParser(), JavascriptPlaywrightParser(), PythonPytestParser()):
+            try:
+                parsed_files.extend(parser.scan_repository(self.repo_path))
+            except Exception as e:
+                print(f"[WARN] Parser {parser.__class__.__name__} failed: {e}")
         self._scan_time = time.time() - start
 
-        print(f"      Found {len(parsed_files)} Java files")
+        print(f"      Found {len(parsed_files)} source files")
         total_methods = sum(len(pf.methods) for pf in parsed_files)
         total_tests = sum(1 for pf in parsed_files for m in pf.methods if m.is_test)
         print(f"      Parsed {total_methods} methods ({total_tests} @Test methods)")
@@ -69,8 +77,8 @@ class SeleniumImpactAnalyzer:
         """Detect changes from git diff and analyze impact."""
         self._ensure_graph()
         print(f"[3/3] Detecting changes: {base_ref}..{head_ref}")
-        diff_analyzer = GitDiffAnalyzer()
-        diff_result = diff_analyzer.from_repo(self.repo_path, base_ref, head_ref)
+        diff_provider = GitProvider()
+        diff_result = diff_provider.from_repo(self.repo_path, base_ref, head_ref)
         return self._run_analysis(
             diff_result.all_changed_methods,
             diff_result.all_changed_locators,
@@ -81,8 +89,8 @@ class SeleniumImpactAnalyzer:
         """Detect changes from a .diff file and analyze impact."""
         self._ensure_graph()
         print(f"[3/3] Parsing diff file: {diff_file}")
-        diff_analyzer = GitDiffAnalyzer()
-        diff_result = diff_analyzer.from_diff_file(diff_file)
+        diff_provider = GitProvider()
+        diff_result = diff_provider.from_diff_file(diff_file)
         return self._run_analysis(
             diff_result.all_changed_methods,
             diff_result.all_changed_locators,
@@ -180,17 +188,17 @@ Examples:
         report = analyzer.analyze_from_git(args.base, args.head)
 
     # Console output
-    ConsoleReporter().print_report(report, verbose=args.verbose)
+    ConsoleReporter().report(report, verbose=args.verbose)
 
     # Optional outputs
     if args.html:
-        HtmlReporter().save(report, args.html)
+        HtmlReporter().report(report, args.html)
 
     if args.json:
-        JsonReporter().save(report, args.json)
+        JsonReporter().report(report, args.json)
 
     if args.ci:
-        print(CiSummaryReporter().generate(report))
+        CiSummaryReporter().report(report)
 
     # Exit code: 0 = no impact, 1 = tests impacted (useful for CI gates)
     sys.exit(1 if report.unique_test_names else 0)
