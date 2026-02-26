@@ -90,6 +90,7 @@ class GitProvider:
         sections = self._split_by_file(diff_text)
         for file_path, section in sections:
             if not file_path.endswith('.java'): continue
+            class_name = os.path.splitext(os.path.basename(file_path))[0]
             fc = FileChange(file_path=file_path)
             current_method, noise = None, frozenset({'if','while','for','switch','catch','try','else','new','class','super','this','return'})
             for raw_line in section.split('\n'):
@@ -97,17 +98,17 @@ class GitProvider:
                     m = re.search(r'@@[^@]+@@\s*(.*)', raw_line)
                     if m:
                         sig = METHOD_SIG_RE.search(m.group(1).strip())
-                        if sig and sig.group(1) not in noise: current_method = sig.group(1)
+                        if sig and sig.group(1) not in noise: current_method = f"{class_name}#{sig.group(1)}"
                 elif raw_line.startswith(' '):
                     sig = METHOD_SIG_RE.search(raw_line[1:])
-                    if sig and sig.group(1) not in noise: current_method = sig.group(1)
+                    if sig and sig.group(1) not in noise: current_method = f"{class_name}#{sig.group(1)}"
                 elif raw_line.startswith('+') or raw_line.startswith('-'):
                     if current_method and current_method not in fc.changed_methods: fc.changed_methods.append(current_method)
                     sig = METHOD_SIG_RE.search(raw_line[1:])
                     if sig and sig.group(1) not in noise:
-                        if sig.group(1) not in fc.changed_methods: fc.changed_methods.append(sig.group(1))
+                        fq = f"{class_name}#{sig.group(1)}"
+                        if fq not in fc.changed_methods: fc.changed_methods.append(fq)
 
-            class_name = os.path.splitext(os.path.basename(file_path))[0]
             for m in ADDED_LINE_RE.finditer(section):
                 line = m.group(1)
                 fc.added_lines.append(line)
@@ -119,7 +120,7 @@ class GitProvider:
 
             for key, data in fc._scoped_builder.items():
                 fc.scoped_locator_changes.append((data['class'], data['field'], data['old'] or '', data['new'] or ''))
-            fc.changed_methods = [n for n in fc.changed_methods if n not in noise]
+            fc.changed_methods = [n for n in fc.changed_methods if n.split('#')[-1] not in noise]
             fc.changed_locators = list(set(fc.changed_locators))
             result.file_changes.append(fc)
         return result
@@ -136,7 +137,7 @@ class GitProvider:
     def _extract_from_line(self, line: str, fc: FileChange, class_name: str):
         sig = METHOD_SIG_RE.search(line)
         if sig and sig.group(1) not in ('if', 'while', 'for', 'catch', 'switch'):
-            fc.changed_methods.append(sig.group(1))
+            fc.changed_methods.append(f"{class_name}#{sig.group(1)}")
         self._extract_locators_from_line(line, fc, class_name)
 
     def _extract_locators_from_line(self, line: str, fc: FileChange, class_name: str, changed: bool = False):
