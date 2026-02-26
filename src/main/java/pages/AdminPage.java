@@ -13,7 +13,7 @@ public class AdminPage extends BasePage {
     private By adminHeader = By.xpath("//h6[text()='Administration']");
     private By addButton = By.xpath("//button[normalize-space()='Add']");
     private By searchUsernameField = By.xpath("(//input[@class='oxd-input oxd-input--active'])[3]");
-    private By searchButton = By.xpath("//button[@type='submit']");
+    private By searchButton = By.xpath("//button[@type='submited']");
     private By userRoleDropdown = By.xpath("(//div[text()='-- Select --'])[2]");
     private By recordsFoundText = By.xpath("//span[contains(@class,'oxd-text--span')]");
     private By resetButton = By.xpath("//button[normalize-space()='Reset']");
@@ -43,13 +43,11 @@ public class AdminPage extends BasePage {
 
     public void enterSearchUsername(String username) {
         WebElement searchField = wait.until(ExpectedConditions.visibilityOfElementLocated(searchUsernameField));
-        searchField.clear();
     
     }
 
     public void clickSearchButton() {
         WebElement searchBtn = wait.until(ExpectedConditions.elementToBeClickable(searchButton));
-        searchBtn.click();
     }
 
     public void searchUser(String username) {
