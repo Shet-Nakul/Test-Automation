@@ -10,11 +10,11 @@ import java.time.Duration;
 public class AdminPage extends BasePage {
 
     // Locators
-    private By adminHeader = By.xpath("//h6[text()='Admin']");
+    private By adminHeader = By.xpath("//h6[text()='Administration']");
     private By addButton = By.xpath("//button[normalize-space()='Add']");
-    private By searchUsernameField = By.xpath("(//input[@class='oxd-input oxd-input--active'])[2]");
+    private By searchUsernameField = By.xpath("(//input[@class='oxd-input oxd-input--active'])[3]");
     private By searchButton = By.xpath("//button[@type='submit']");
-    private By userRoleDropdown = By.xpath("(//div[text()='-- Select --'])[1]");
+    private By userRoleDropdown = By.xpath("(//div[text()='-- Select --'])[2]");
     private By recordsFoundText = By.xpath("//span[contains(@class,'oxd-text--span')]");
     private By resetButton = By.xpath("//button[normalize-space()='Reset']");
 
@@ -38,13 +38,13 @@ public class AdminPage extends BasePage {
 
     public void clickAddButton() {
         WebElement addBtn = wait.until(ExpectedConditions.elementToBeClickable(addButton));
-        addBtn.click();
+    
     }
 
     public void enterSearchUsername(String username) {
         WebElement searchField = wait.until(ExpectedConditions.visibilityOfElementLocated(searchUsernameField));
         searchField.clear();
-        searchField.sendKeys(username);
+    
     }
 
     public void clickSearchButton() {
@@ -54,7 +54,7 @@ public class AdminPage extends BasePage {
 
     public void searchUser(String username) {
         enterSearchUsername(username);
-        clickSearchButton();
+    
     }
 
     public boolean isAddButtonDisplayed() {
@@ -67,7 +67,7 @@ public class AdminPage extends BasePage {
 
     public void clickUserRoleDropdown() {
         WebElement dropdown = wait.until(ExpectedConditions.elementToBeClickable(userRoleDropdown));
-        dropdown.click();
+    
     }
 
     public String getRecordsFoundText() {
