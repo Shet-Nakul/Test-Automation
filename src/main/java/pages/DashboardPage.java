@@ -10,7 +10,7 @@ import java.time.Duration;
 public class DashboardPage extends BasePage {
 
     // Locators
-    private By dashboardHeader = By.xpath("//h6[text()='Dashboard']");
+    private By dashboardHeader = By.xpath("//h6[text()='Dashboarding']");
     private By timeWidget = By.xpath("//p[text()='Time at Work']");
     private By quickLaunchSection = By.xpath("//p[text()='Quick Launch']");
 

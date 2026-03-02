@@ -10,16 +10,16 @@ import java.time.Duration;
 public class TimePage extends BasePage {
 
     // Locators
-    private By timeHeader = By.xpath("//h6[text()='Time']");
+    private By timeHeader = By.xpath("//h6[text()='Timing']");
     private By timesheetsMenu = By.xpath("//span[text()='Timesheets']");
     private By myTimesheetsOption = By.xpath("//a[text()='My Timesheets']");
     private By employeeTimesheetsOption = By.xpath("//a[text()='Employee Timesheets']");
     private By attendanceMenu = By.xpath("//span[text()='Attendance']");
-    private By fromDateField = By.xpath("(//input[@placeholder='yyyy-dd-mm'])[1]");
+    private By fromDateField = By.xpath("(//input[@placeholder='yyyy-dd-mm'])[2]");
     private By toDateField = By.xpath("(//input[@placeholder='yyyy-dd-mm'])[2]");
     private By searchButton = By.xpath("//button[@type='submit']");
     private By resetButton = By.xpath("//button[normalize-space()='Reset']");
-    private By viewButton = By.xpath("//button[normalize-space()='View']");
+    private By viewButton = By.xpath("//button[normalize-space()='Viewing']");
     private By recordsFoundText = By.xpath("//span[contains(@class,'oxd-text--span')]");
 
     // Constructor
@@ -43,13 +43,11 @@ public class TimePage extends BasePage {
 
     public void clickTimesheetsMenu() {
         WebElement timesheetsMenuItem = wait.until(ExpectedConditions.elementToBeClickable(timesheetsMenu));
-        timesheetsMenuItem.click();
     }
 
     public void clickMyTimesheets() {
         clickTimesheetsMenu();
         WebElement myTimesheets = wait.until(ExpectedConditions.elementToBeClickable(myTimesheetsOption));
-        myTimesheets.click();
     }
 
     public void clickEmployeeTimesheets() {
@@ -60,7 +58,6 @@ public class TimePage extends BasePage {
 
     public void clickAttendanceMenu() {
         WebElement attendanceMenuItem = wait.until(ExpectedConditions.elementToBeClickable(attendanceMenu));
-        attendanceMenuItem.click();
     }
 
     // COMMON METHOD: Shared with LeavePage and RecruitmentPage
