@@ -10,7 +10,7 @@ import java.time.Duration;
 public class AdminPage extends BasePage {
 
     // Locators
-    private By adminHeader = By.xpath("//h6[text()='Administration']");
+    private By adminHeader = By.xpath("//h6[text()='Admin']");
     private By addButton = By.xpath("//button[normalize-space()='Add']");
     private By searchUsernameField = By.xpath("(//input[@class='oxd-input oxd-input--active'])[2]");
     private By searchButton = By.xpath("//button[@type='submit']");
