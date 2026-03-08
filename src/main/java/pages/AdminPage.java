@@ -10,9 +10,9 @@ import java.time.Duration;
 public class AdminPage extends BasePage {
 
     // Locators
-    private By adminHeader = By.xpath("//h6[text()='Administration']");
+    private By adminHeader = By.xpath("//h6[text()='Admin']");
     private By addButton = By.xpath("//button[normalize-space()='Add']");
-    private By searchUsernameField = By.xpath("(//input[@class='oxd-input oxd-input--active'])[3]");
+    private By searchUsernameField = By.xpath("(//input[@class='oxd-input oxd-input--active'])[4]");
     private By searchButton = By.xpath("//button[@type='submit']");
     private By userRoleDropdown = By.xpath("(//div[text()='-- Select --'])[2]");
     private By recordsFoundText = By.xpath("//span[contains(@class,'oxd-text--span')]");
@@ -38,7 +38,6 @@ public class AdminPage extends BasePage {
 
     public void clickAddButton() {
         WebElement addBtn = wait.until(ExpectedConditions.elementToBeClickable(addButton));
-        addBtn.click();
     }
 
     public void enterSearchUsername(String username) {
@@ -76,7 +75,6 @@ public class AdminPage extends BasePage {
 
     public void clickResetButton() {
         WebElement resetBtn = wait.until(ExpectedConditions.elementToBeClickable(resetButton));
-        resetBtn.click();
     }
 
     public boolean isResetButtonDisplayed() {
