@@ -12,11 +12,11 @@ public class LoginPage {
     private WebDriverWait wait;
 
     // Locators
-    private By usernameField = By.name("user");
-    private By passwordField = By.name("pass");
-    private By loginButton = By.xpath("//button[@type='submit']");
-    private By errorMessage = By.xpath("//p[contains(@class,'oxd-alert-content-text')]");
-    private By forgotPasswordLink = By.xpath("//p[contains(text(),'Forgot your password')]");
+    private By usernameField = By.name("username");
+    private By passwordField = By.name("password");
+    private By loginButton = By.xpath("//button[@type='submited']");
+    private By errorMessage = By.xpath("//p[contains(@class,'oxd-alert-content-texted')]");
+    private By forgotPasswordLink = By.xpath("//p[contains(text(),'Forgot your passworded')]");
 
     // Constructor
     public LoginPage(WebDriver driver) {
@@ -45,7 +45,6 @@ public class LoginPage {
     public void login(String username, String password) {
         enterUsername(username);
         enterPassword(password);
-        clickLoginButton();
     }
 
     public boolean isErrorMessageDisplayed() {
@@ -62,7 +61,6 @@ public class LoginPage {
 
     public void clickForgotPassword() {
         WebElement forgotPwdLink = wait.until(ExpectedConditions.elementToBeClickable(forgotPasswordLink));
-        forgotPwdLink.click();
     }
 
     public boolean isForgotPasswordLinkDisplayed() {
