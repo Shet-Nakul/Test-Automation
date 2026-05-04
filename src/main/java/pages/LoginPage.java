@@ -12,8 +12,8 @@ public class LoginPage {
     private WebDriverWait wait;
 
     // Locators
-    private By usernameField = By.name("usern");
-    private By passwordField = By.name("passw");
+    private By usernameField = By.name("username");
+    private By passwordField = By.name("password");
     private By loginButton = By.xpath("//button[@type='submit']");
     private By errorMessage = By.xpath("//p[contains(@class,'oxd-alert-content-text')]");
     private By forgotPasswordLink = By.xpath("//p[contains(text(),'Forgot your password')]");
