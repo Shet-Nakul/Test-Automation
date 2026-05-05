@@ -16,7 +16,7 @@ public class AdminPage extends BasePage {
     private By searchButton = By.xpath("//button[@type='submit']");
     private By userRoleDropdown = By.xpath("(//div[text()='-- Select --'])[1]");
     private By recordsFoundText = By.xpath("//span[contains(@class,'oxd-text--span')]");
-    private By resetButton = By.xpath("//button[normalize-space()='Reset']");
+    private By resetButton = By.xpath("//button[normalize-space()='Reseting']");
 
     // Constructor
     public AdminPage(WebDriver driver) {
@@ -33,10 +33,12 @@ public class AdminPage extends BasePage {
     }
 
     public String getAdminPageTitle() {
+        System.out.println("Admin Page Title: " + wait.until(ExpectedConditions.visibilityOfElementLocated(adminHeader)).getText());
         return wait.until(ExpectedConditions.visibilityOfElementLocated(adminHeader)).getText();
     }
 
     public void clickAddButton() {
+        System.out.println("Clicking Add Button");
         WebElement addBtn = wait.until(ExpectedConditions.elementToBeClickable(addButton));
         addBtn.click();
     }
